@@ -1,4 +1,4 @@
-# from sqlalchemy.exc import DatabaseError, SQLAlchemyError , IntegrityError
+
 
 class AppError(Exception):
     def __init__(self,

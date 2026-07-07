@@ -6,7 +6,7 @@ from sqlalchemy.exc import (
     ProgrammingError,
 )
 from typing  import TypeVar
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from .exceptions import AppError
 T = TypeVar("T")
 class DataBaseError(AppError):
@@ -48,7 +48,7 @@ def translate_database_error(exc:SQLAlchemyError) -> DataBaseError:
                          status_code=500
                          )
 
-def run_database_operation(db:Session,operation:callable[[],T]) ->T :
+async def run_database_operation(db:AsyncSession,operation:callable[[],T]) ->T :
     """
     Runs a database operation safely.
 
@@ -58,7 +58,6 @@ def run_database_operation(db:Session,operation:callable[[],T]) ->T :
     - Raise the error
     """
     try: 
-        return operation()
+        return await operation()
     except SQLAlchemyError as exc:
-        db.rollback() 
         raise translate_database_error(exc=exc) from exc

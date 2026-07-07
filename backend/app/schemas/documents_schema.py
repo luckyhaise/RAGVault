@@ -3,10 +3,11 @@ from uuid import UUID
 from datetime import datetime 
 
 
-class Create_Documents(BaseModel):
+class CreateDocumentsCommand(BaseModel):
     user_id : UUID = Field(description="The unique identifier of the user who owns this document")
     title : str = Field(min_length=1,max_length=200, description="Title of the document")
     original_text: str =  Field(min_length=1,max_length=500_000, description="The content of the document")
+    idempotency_key: UUID = Field(description="Idempotancy key of the job")
 
 class Create_Documents_Chunks(BaseModel):
     document_id : UUID =Field(description="The unique identifier of the document which is cuncked")

@@ -12,6 +12,7 @@ class Base(DeclarativeBase):
 class Users(Base):
     __tablename__ = "users"
     id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),primary_key=True,default=uuid4)
+    user_name : Mapped[str] = mapped_column(VARCHAR(200),unique=True,nullable=False)
     name: Mapped[str] = mapped_column(VARCHAR(100),nullable=False)
     password : Mapped[str] = mapped_column(Text,nullable=False)
     phone: Mapped[str] = mapped_column(VARCHAR(20),nullable=False,unique=True)
@@ -53,7 +54,7 @@ class Ingestion_Jobs(Base):
     __tablename__ = "ingestion_jobs"
     id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),default=uuid4,primary_key=True)
     user_id : Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),ForeignKey("users.id",ondelete="CASCADE"))
-    document_id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),ForeignKey("documents.id",ondelete="CASCADE"))
+    document_id: Mapped[UUID_PY|None] = mapped_column(UUID(as_uuid=True),ForeignKey("documents.id",ondelete="SET NULL"),nullable=True)
     status: Mapped[Literal["pending","completed","failed","processing"]] = mapped_column(Enum("pending","completed","failed","processing",name= "ingestion_jobs_status"),default="pending")
     error_message : Mapped[str|None] = mapped_column(Text,nullable=True,default=None)
     idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
@@ -87,3 +88,15 @@ class Llm_Runs(Base):
     completed_at : Mapped[datetime|None] = mapped_column(DateTime(timezone=True),nullable=True) 
     document = relationship("Documents",back_populates="llm_runs")
     user = relationship("Users",back_populates="llm_runs")
+
+class EmailVerificationOtp(Base):
+    __tablename__ = "email_verification_otp"
+    id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),default=uuid4,primary_key=True)
+    user_id : Mapped[UUID_PY] = mapped_column(ForeignKey("users.id",ondelete="CASCADE"))
+    otp_hash: Mapped[str] = mapped_column(Text,nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False)
+    attempts: Mapped[int] = mapped_column(default=0,nullable= False)
+    created_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

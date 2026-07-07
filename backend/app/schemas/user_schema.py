@@ -6,7 +6,6 @@ class User_Login(BaseModel):
     user_name:str|None = Field(pattern=r"^[0-9a-zA-Z]+$",description="Name of the user",default=None)
     email : EmailStr|None = Field(description="Email of the User",default=None)
     password:str = Field(..., description="Password of the user", pattern=r"^[0-9a-zA-Z]") 
-    # @classmethod
     @model_validator(mode="before")
     def email_or_phone(self):
         if not self.user_name and not self.email:

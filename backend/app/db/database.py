@@ -10,7 +10,7 @@ async def db():
     try:
      yield session
     except Exception:
-       session.rollback()
+       await session.rollback()
        raise 
     finally:
         await session.close()

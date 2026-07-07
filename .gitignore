@@ -1,0 +1,13 @@
+# Environment files (Secrets)
+.env
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

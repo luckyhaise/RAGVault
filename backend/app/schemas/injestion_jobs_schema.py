@@ -8,9 +8,10 @@ class Create_Ingestion_Jobs(BaseModel):
 
 class Ingestion_Jobs_Response(BaseModel):
     id:UUID = Field(description="Unique indetifier of the jobs")
+    document_id:UUID| None = Field(description="Unique indentifier for documents",default= None)
     status:Literal["pending","completed","failed","processing"] = Field(description="Status of the Job")
     error_message:str| None = Field(description="Error message if any", default= None)
-    idempotency_key: str = Field(description="Idempotancy key of the job")
+    idempotency_key: UUID = Field(description="Idempotancy key of the job")
     completed_at:datetime = Field("Time when job was completed")
 
     updated_at:datetime = Field("Time when document was last updated")
