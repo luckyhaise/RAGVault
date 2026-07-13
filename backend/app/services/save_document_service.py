@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.documents_schema import CreateDocumentsCommand
-from backend.app.core.exceptions.database_errors import translate_database_error
+from app.core.exceptions.database_errors import translate_database_error
 from sqlalchemy.exc import  SQLAlchemyError
 from app.repositories.documents_repository import create_document
-from app.services.ingestion_job_service import start_ingestion_job , ingestion_job_failed,ingestion_job_success
+from app.services.injestion_job_service import start_ingestion_job , ingestion_job_failed,ingestion_job_success
 from app.utils.chunk_test import chuckey_chunkey
 from app.repositories.chunks_repository import save_chunks
   

@@ -15,7 +15,7 @@ async def find_user_by_user_name(session:AsyncSession,password:str,user_name:str
     user =  (await session.execute(user)).scalar_one_or_none()
     return user
 
-async def find_user_by_email(session:AsyncSession,password:str,email:str):
+async def find_user_by_email(session:AsyncSession,password:str,email:str) :
     user = select(Users).where(Users.email == email , Users.password == password)
     user = (await session.execute(user)).scalar_one_or_none()
     return user

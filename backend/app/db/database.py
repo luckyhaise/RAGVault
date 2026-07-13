@@ -5,7 +5,7 @@ from app.core.config import settings
 
 engine = create_async_engine(str(settings.postgres_url),echo=True)
 SessionLocal = async_sessionmaker(bind=engine,autoflush=False,expire_on_commit=False)
-async def db():
+async def get_db():
     session =  SessionLocal()
     try:
      yield session

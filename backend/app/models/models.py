@@ -12,18 +12,22 @@ class Base(DeclarativeBase):
 class Users(Base):
     __tablename__ = "users"
     id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),primary_key=True,default=uuid4)
-    user_name : Mapped[str] = mapped_column(VARCHAR(200),unique=True,nullable=False)
+    user_name : Mapped[str] = mapped_column(VARCHAR(200),nullable=False)
     name: Mapped[str] = mapped_column(VARCHAR(100),nullable=False)
     password : Mapped[str] = mapped_column(Text,nullable=False)
-    phone: Mapped[str] = mapped_column(VARCHAR(20),nullable=False,unique=True)
-    email : Mapped[str] = mapped_column(EmailType,unique=True,nullable=False)
+    phone: Mapped[str] = mapped_column(VARCHAR(20),nullable=False)
+    email : Mapped[str] = mapped_column(EmailType,nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default= lambda: datetime.now(UTC)) 
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),default=lambda: datetime.now(UTC),onupdate=lambda:datetime.now(UTC))
     deleted_at : Mapped[datetime|None] = mapped_column(DateTime(timezone=True),default=None,nullable=True)
     documents = relationship("Documents",back_populates="user",cascade="all, delete-orphan")
     llm_runs = relationship("Llm_Runs",back_populates="user",cascade="all, delete-orphan")
     ingestion_jobs = relationship("Ingestion_Jobs",back_populates="user",cascade="all, delete-orphan") 
-    __table_args__ =  (UniqueConstraint("phone","email" ,name="uq_phone_email"),)
+    __table_args__ = (
+        UniqueConstraint("phone", name="uq_phone"),
+        UniqueConstraint("email", name="uq_email"),
+        UniqueConstraint("user_name", name="uq_user_name"),
+    )
 class Documents(Base):
     __tablename__ = "documents"
 

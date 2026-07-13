@@ -27,4 +27,3 @@ class Retrieve_Document(BaseModel):
     created_at:datetime = Field(description="The time when document was created")
     updated_at:datetime = Field(description= "The time when document was last updated")
     deleted_at:datetime = Field(description="Date and time of document being deleted at")
-

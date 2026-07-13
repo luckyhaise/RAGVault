@@ -2,9 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from app.repositories.ingestion_job_repository import get_by_idempotency_key , create , get_by_job_id
 from datetime import datetime, UTC
-from backend.app.core.exceptions.exceptions import NotFoundError
+from app.core.exceptions.exceptions import NotFoundError
 from uuid import UUID
-from backend.app.core.exceptions.database_errors import run_database_operation
+from app.core.exceptions.database_errors import run_database_operation
 
 logger = logging.getLogger(__name__)
 
