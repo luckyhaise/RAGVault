@@ -17,6 +17,7 @@ async def start_ingestion_job(user_id:UUID,session:AsyncSession,idempotency_key:
             logger.info("Ingestion job already exists | user_id=%s | idempotency_key=%s", user_id, idempotency_key)
             return existing_job
         job = await create(session=session,user_id=user_id,document_id=document_id,idempotency_key=idempotency_key,status=status)
+        logger.info("Ingestion job started | job_id=%s | user_id=%s | idempotency_key=%s", job.id, user_id, idempotency_key)
         return job
      return await run_database_operation(db=session,operation=operation)
     

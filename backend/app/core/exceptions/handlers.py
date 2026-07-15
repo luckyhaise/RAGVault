@@ -48,6 +48,13 @@ async def validation_error_handler(request:Request,exc:RequestValidationError):
       })
 
 async def http_exception_handler(request:Request,exc:StarLetteHttpException):
+   logger.warning(
+       "HTTP exception: %s %s | code=%s | detail=%s",
+       request.method,
+       request.url.path,
+       exc.status_code,
+       exc.detail,
+   )
    return JSONResponse(status_code=exc.status_code,content={
       "error": {
        "code":"http_error",
