@@ -3,9 +3,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession  
 
-from app.services.save_document_service import save_document_service
-from app.schemas.injestion_jobs_schema import Ingestion_Jobs_Response
-from app.schemas.documents_schema import CreateDocumentsCommand
+from app.services.document_service import save_document_service
+from app.schemas.ingestion_jobs_schema import Ingestion_Jobs_Response
+from app.schemas.documents_schema import CreateDocumentsCommand , DeleteDocumentCommand
 
 
 from app.db.database import get_db 
@@ -21,5 +21,7 @@ async def save_document(user_id:UUID= Depends(validate_token_and_get_user_id),se
     return  await save_document_service(session=session,command=command)
     
     
-
+async def delete_document(document_id:UUID=Form(...),user_id:UUID = Depends(validate_token_and_get_user_id),session:AsyncSession = Depends(get_db)):
+    command = DeleteDocumentCommand(user_id=user_id,document_id=document_id)
+    
  

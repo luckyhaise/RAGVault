@@ -2,9 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from app.schemas.user_schema import User_Create, User_Login
 from app.core.exceptions.database_errors import run_database_operation
-from app.core.security import hash_password, create_access_token
-from app.repositories.users_repository import save_user , find_user_by_user_name
-from app.core.exceptions.exceptions import NotFoundError
+from app.core.security import hash_password, create_access_token , match_password
+from app.repositories.users_repository import save_user , find_user_by_user_name , find_user_by_email 
+from app.core.exceptions.exceptions import NotFoundError , UnauthorizedError
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +24,20 @@ async def create_account_service(session:AsyncSession,user:User_Create):
     
 async def login_service(session:AsyncSession,user:User_Login):
   async def operation():
-    user_detail = await find_user_by_user_name(session=session,password=user.password,user_name=user.user_name)
+    if user.user_name is not None:
+     user_detail = await find_user_by_user_name(session=session,user_name=user.user_name)
+    else:
+     user_detail = await find_user_by_email(session=session,email=user.email)
     if user_detail is None:
-      raise NotFoundError(internal_message="Account Not found",public_message="No account exists from this user name and password")
+      raise UnauthorizedError(internal_message=f"Account Not found. User_name:{user.user_name} User_email:{user.email} ",public_message="Invalid username/email or password")
+    
+    if not match_password(password=user.password, hashed_password=user_detail.password) : 
+      raise UnauthorizedError(public_message="Invalid username/email or password")
     user_id = user_detail.id
     token = create_access_token(subject=user_id)
     logger.info("Login successful | user_id=%s", user_id)
     return token
-  return await run_database_operation(db=session,operation=operation)
+  return await run_database_operation(session=session,operation=operation)
 
 
 

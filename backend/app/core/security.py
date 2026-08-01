@@ -1,8 +1,8 @@
 from argon2 import PasswordHasher
-from uuid import UUID
+from argon2.exceptions import VerifyMismatchError 
 from jose import jwt 
 from jose.exceptions import JWTError
-from datetime import date, datetime,timedelta , UTC
+from datetime import  datetime,timedelta , UTC
 from app.core.config import settings
 from typing import Any
 
@@ -17,7 +17,11 @@ def hash_password(password: str):
 
 
 def match_password(password: str, hashed_password: str):
-    return hasher.verify(hash=hashed_password, password=password)
+     try : 
+      return hasher.verify(hash=hashed_password, password=password)
+     except VerifyMismatchError:
+         return False
+     
 
 def create_access_token(subject: str) -> str:
     now = datetime.now(UTC)
@@ -37,8 +41,6 @@ def decode_access_token(token:str)-> str:
      
     )
    user_id = decoded.get("sub")
-   if user_id is None:
-       raise JWTError("This token does not contain a user id")
    return user_id
 
 

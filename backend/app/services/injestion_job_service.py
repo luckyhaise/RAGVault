@@ -19,7 +19,7 @@ async def start_ingestion_job(user_id:UUID,session:AsyncSession,idempotency_key:
         job = await create(session=session,user_id=user_id,document_id=document_id,idempotency_key=idempotency_key,status=status)
         logger.info("Ingestion job started | job_id=%s | user_id=%s | idempotency_key=%s", job.id, user_id, idempotency_key)
         return job
-     return await run_database_operation(db=session,operation=operation)
+     return await run_database_operation(session=session,operation=operation)
     
 async def  ingestion_job_success(job_id:UUID,session:AsyncSession,status="completed"):
     async def operation():
@@ -37,7 +37,7 @@ async def  ingestion_job_success(job_id:UUID,session:AsyncSession,status="comple
 
         return job
     
-    return await run_database_operation(db=session,operation=operation)
+    return await run_database_operation(session=session,operation=operation)
 
 async def ingestion_job_failed(job_id:UUID,error_message:str,session:AsyncSession,status="failed"):
     async def operation():
@@ -56,4 +56,4 @@ async def ingestion_job_failed(job_id:UUID,error_message:str,session:AsyncSessio
         )
 
         return job
-    return await run_database_operation(db=session,operation=operation)
+    return await run_database_operation(session=session,operation=operation)

@@ -61,7 +61,7 @@ class Ingestion_Jobs(Base):
     document_id: Mapped[UUID_PY|None] = mapped_column(UUID(as_uuid=True),ForeignKey("documents.id",ondelete="SET NULL"),nullable=True)
     status: Mapped[Literal["pending","completed","failed","processing"]] = mapped_column(Enum("pending","completed","failed","processing",name= "ingestion_jobs_status"),default="pending")
     error_message : Mapped[str|None] = mapped_column(Text,nullable=True,default=None)
-    idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
+    idempotency_key: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),nullable=False,default=uuid4)
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=lambda : datetime.now(UTC),default=lambda:datetime.now(UTC))
     completed_at : Mapped[datetime|None] = mapped_column(DateTime(timezone=True),default=None,nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default= lambda:datetime.now(UTC))

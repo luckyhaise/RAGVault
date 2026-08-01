@@ -7,7 +7,7 @@ ALLOWED_FILE_TYPES = [
     "text/csv",
     "text/markdown",
 ]
-async def validate_file(
+async def validate_file( file_name:str=None,
         text_file: UploadFile = File(...)):
     if text_file.content_type not in ALLOWED_FILE_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,detail="Only .txt , .csv , .md files are allowed")
@@ -18,5 +18,6 @@ async def validate_file(
      original_file = file_bytes.decode("utf-8")
     except UnicodeDecodeError:
        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Invalid text encoding")
-    title = text_file.filename or "Untitled_document"
+    title = file_name or text_file.filename 
     return original_file , title
+

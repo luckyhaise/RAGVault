@@ -69,7 +69,7 @@ async def unexpected_exception_handler(request:Request,exc:Exception):
     )
     return JSONResponse(status_code=500, content={
        "error" : {
-          "code" : "Internal server Error",
+          "code" : "UNEXPECTED_ERROR",
           "message" : "An unexpected server error occured"
        }
     })

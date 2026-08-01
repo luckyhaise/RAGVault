@@ -9,7 +9,7 @@ import re
 import logging
 from typing  import TypeVar
 from sqlalchemy.ext.asyncio import AsyncSession
-from .exceptions import AppError
+from .exceptions import DataBaseError
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +52,6 @@ def get_constraint_name(exc:IntegrityError) :
         if constraint_name:
             return constraint_name
         
-    error_msg = str(original_error)
-    if "constraint failed" in error_msg.lower():
-        match = re.search(r"failed:\s+([a-zA-Z0-9_\.]+)", error_msg)
-        if match:
-            return match.group(1)
     return None
     
 
@@ -65,9 +60,6 @@ def get_constraint_name(exc:IntegrityError) :
 
 
 T = TypeVar("T")
-class DataBaseError(AppError):
-    def __init__(self, public_message="A database Error Occured", status_code=500, internal_message:str|None = None, error_code="DATABASE_ERROR"):
-        super().__init__(public_message = public_message, status_code = status_code, internal_message = internal_message, error_code = error_code)
 
 def translate_database_error(exc:SQLAlchemyError) -> DataBaseError:
     if isinstance(exc,IntegrityError):
@@ -127,6 +119,7 @@ async def  run_database_operation(session:AsyncSession,operation:callable[[],T])
     try: 
         return await operation()
     except SQLAlchemyError as exc:
+        await session.rollback()
         raise translate_database_error(exc=exc) from exc
     
 

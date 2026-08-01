@@ -71,4 +71,8 @@ class ExternalServiceError(AppError):
             internal_message=internal_message,
             error_code="EXTERNAL_SERVICE_ERROR",
         )
+class DataBaseError(AppError):
+    def __init__(self, public_message="A database Error Occured", status_code=500, internal_message:str|None = None, error_code="DATABASE_ERROR"):
+        super().__init__(public_message = public_message, status_code = status_code, internal_message = internal_message, error_code = error_code)
+
 

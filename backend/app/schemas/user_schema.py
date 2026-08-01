@@ -1,46 +1,102 @@
-from pydantic import BaseModel, Field ,  EmailStr , model_validator , ConfigDict , field_validator
+from pydantic import BaseModel, Field ,  EmailStr , model_validator , ConfigDict ,  AfterValidator
 from uuid import UUID
-from typing import Literal
+from typing import  Annotated , Self
 from app.core.config import settings
+import re
+
+USERNAME_PATTERN = r"^[a-zA-Z0-9_.-]+$"
+PASSWORD_PATTERN = re.compile(settings.regex)
+
+SPECIAL_CHARACTERS = "@#_!$%*.-"
+
+
+def validate_new_password(password: str) -> str:
+    if not PASSWORD_PATTERN.fullmatch(password):
+        raise ValueError(
+            "Password contains invalid characters. "
+            "Only alphanumeric characters and @#_!$%*.- are allowed"
+        )
+
+    if not any(character.isupper() for character in password):
+        raise ValueError(
+            "At least one character must be uppercase"
+        )
+
+    if not any(character.islower() for character in password):
+        raise ValueError(
+            "At least one character must be lowercase"
+        )
+
+    if not any(character.isdigit() for character in password):
+        raise ValueError(
+            "At least one character must be a digit"
+        )
+
+    if not any(
+        character in SPECIAL_CHARACTERS
+        for character in password
+    ):
+        raise ValueError(
+            "At least one special character is required"
+        )
+
+    return password
+
+
+NewPassword = Annotated[
+    str,
+    Field(min_length=8, max_length=128),
+    AfterValidator(validate_new_password),
+]
+def validate_phone_number(phone:str):
+    if not phone.startswith("+") :
+        raise ValueError("Phone number must contain country code")
+    if not len(phone[1:]) >= 7:
+        raise ValueError("Phone number is too small")
+    if not len(phone[1:]) <= 15:
+        raise ValueError("Phone number is too large")
+    return phone
+
+PhoneStr = Annotated[str,Field(
+        pattern=r"^\+[1-9][0-9]+$",
+    ),AfterValidator(validate_phone_number)]
 
 class User_Login(BaseModel):
-    user_name:str|None = Field(pattern=settings.regex,description="Name of the user",default=None)
-    email : EmailStr|None = Field(description="Email of the User",default=None)
-    password:str = Field(..., description="Password of the user", pattern=settings.regex) 
+    user_name: str | None = Field(
+        default=None,
+        pattern=USERNAME_PATTERN,
+    )
+    email: EmailStr | None = None
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+    )
+
     @model_validator(mode="after")
-    def email_or_phone(self):
+    def require_login_identifier(self) -> Self:
         if not self.user_name and not self.email:
-            raise ValueError("Provide either email or phone number")
-        return self 
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls,password:str) -> str:
-        special_characters = list("@#_!$%*.-")
-        if not any(char.isupper() for char in password):
-            raise ValueError("Atleast One character should be upper")
-        if not any(char.islower() for char in password):
-            raise ValueError("Atleast one character should be lower")
-        if not any(char.isdigit() for char in password):
-            raise ValueError("Atleast One character should be a number")
-        if not any(char in special_characters for char in password):
-            raise ValueError(f"Aleast one character should be a special character {special_characters}")
-        return password
-
-
-# class Forgot_Password()
-
-class User_Create(User_Login):
-    name: str = Field(...,description="Name of the user",min_length=2,max_length=100)
-    phone: str  = Field(description="Phone number of the user")
-
-    @model_validator(mode="after")
-    def validate_phoneno(self):
-        if self.phone[0] != "+":
-            raise ValueError("Country code should be included in the phone number")
-        if len(self.phone[3:]) < 10:
-            raise ValueError("Phone number should be atleast 10 digits long") 
+            raise ValueError(
+                "Provide either email or username"
+            )
+        if self.user_name  and self.email:
+            raise ValueError("Provide only username or email")
         return self
-    
+
+
+class User_Create(BaseModel):
+    user_name: str = Field(
+        min_length=3,
+        max_length=200,
+        pattern=USERNAME_PATTERN,
+    )
+    email: EmailStr
+    password: NewPassword
+
+    name: str = Field(
+        min_length=2,
+        max_length=100,
+    )
+    phone: PhoneStr
 
 class UserCreateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

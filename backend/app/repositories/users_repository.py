@@ -9,14 +9,14 @@ async def save_user(phone_number:int,name:str,email_id:str,hashed_password:str,u
     await session.flush()
     return user
 
-async def find_user_by_user_name(session:AsyncSession,password:str,user_name:str):
+async def find_user_by_user_name(session:AsyncSession,user_name:str):
 
-    user = select(Users).where(Users.user_name== user_name,Users.password==password) 
+    user = select(Users).where(Users.user_name== user_name) 
     user =  (await session.execute(user)).scalar_one_or_none()
     return user
 
-async def find_user_by_email(session:AsyncSession,password:str,email:str) :
-    user = select(Users).where(Users.email == email , Users.password == password)
+async def find_user_by_email(session:AsyncSession,email:str) :
+    user = select(Users).where(Users.email == email )
     user = (await session.execute(user)).scalar_one_or_none()
     return user
 

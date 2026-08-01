@@ -26,4 +26,8 @@ class Retrieve_Document(BaseModel):
     original_text: str = Field(description="The content of the document")
     created_at:datetime = Field(description="The time when document was created")
     updated_at:datetime = Field(description= "The time when document was last updated")
-    deleted_at:datetime = Field(description="Date and time of document being deleted at")
+    deleted_at:datetime|None = Field(description="Date and time of document being deleted at",default= None)
+
+class DeleteDocumentCommand(BaseModel):
+    user_id : UUID = Field(description="The unique identifier of the user who owns this document")
+    id: UUID = Field(description="Unique identifier of the document")
