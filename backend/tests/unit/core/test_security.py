@@ -46,7 +46,7 @@ def test_token_salt_uniqueness():
     user_id = str(uuid4())
     token = create_access_token(user_id)
     second_token = create_access_token(user_id)
-    assert not token == second_token
+    assert  token != second_token
 
 @given(st.integers(min_value=1,max_value=9999999999)|st.characters())
 def token_edge_cases(n):

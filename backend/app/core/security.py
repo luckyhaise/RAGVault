@@ -1,11 +1,11 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError 
 from jose import jwt 
-from jose.exceptions import JWTError
+# from jose.exceptions import JWTError
 from datetime import  datetime,timedelta , UTC
 from app.core.config import settings
 from typing import Any
-
+from uuid import uuid4
 
 
 hasher = PasswordHasher()
@@ -29,7 +29,8 @@ def create_access_token(subject: str) -> str:
     payload:dict[str, Any] = {
         "sub" : str(subject),
         "iat" : int(now.timestamp()),
-        "exp" : int(expire_at.timestamp())
+        "exp" : int(expire_at.timestamp()),
+        "jti": str(uuid4())  
     }
     token = jwt.encode(payload,key=settings.jwt_secret_key,algorithm=settings.jwt_algorithm)
     return token 

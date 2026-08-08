@@ -1,21 +1,9 @@
-import logging
-import resend
-from app.core.config import settings
-from app.core.exceptions.email_exceptions import EmailDeliveryError
+from app.utils.send_email import send_email
+import asyncio 
+from app.core.security import settings
 
-logger = logging.getLogger(__name__)
-
-# set api key for the service
-resend.api_key = settings.resend_api_key
-
-async def send_email(recipient_email:str,otp:int,subject:str="Verify your RAGVault email"):
-    try:
-     resend.Emails.send(
-        {
-           "from": settings.verification_email,
-           "to": [recipient_email],
-           "subject" : subject,
-           "html" : f"""
+async def send_otp_email(recipient_email:str,otp:int):
+   await send_email(recipient_email=recipient_email,otp=otp,html=f"""
              <h2> Email Verification</h2>
              <p> Your RAGVault verification code is : </p>
              <h3>{otp}</h3>
@@ -24,12 +12,4 @@ async def send_email(recipient_email:str,otp:int,subject:str="Verify your RAGVau
          
         
 
-            """
-        }
-     )
-     logger.info("Verification email sent | recipient=%s", recipient_email)
-    except Exception as exc:
-       logger.error("Failed to send verification email | recipient=%s | error=%s", recipient_email, exc)
-       raise EmailDeliveryError(
-          internal_message=str(exc)
-       )
+            """,subject="Ragvault ")

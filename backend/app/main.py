@@ -20,5 +20,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Ragvault", version="1.0.0", lifespan=lifespan)
 
 register_expection_handler(app=app)
-
 app.include_router(api_router)

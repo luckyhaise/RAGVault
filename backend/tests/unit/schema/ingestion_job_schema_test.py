@@ -18,6 +18,7 @@ def make_response_data() -> dict:
     return {
         "id": uuid4(),
         "document_id": uuid4(),
+        "user_id":uuid4(),
         "status": "pending",
         "error_message": None,
         "idempotency_key": uuid4(),

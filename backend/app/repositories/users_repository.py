@@ -8,9 +8,8 @@ async def save_user(phone_number:int,name:str,email_id:str,hashed_password:str,u
     session.add(user)
     await session.flush()
     return user
-
 async def find_user_by_user_name(session:AsyncSession,user_name:str):
-
+    
     user = select(Users).where(Users.user_name== user_name) 
     user =  (await session.execute(user)).scalar_one_or_none()
     return user

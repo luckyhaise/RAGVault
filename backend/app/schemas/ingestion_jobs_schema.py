@@ -8,6 +8,7 @@ class Create_Ingestion_Jobs(BaseModel):
 
 class Ingestion_Jobs_Response(BaseModel):
     id:UUID = Field(description="Unique indetifier of the jobs")
+    user_id: UUID = Field(description="The unique identifier of the user who owns this Job")
     document_id:UUID| None = Field(description="Unique indentifier for documents",default= None)
     status:Literal["pending","completed","failed","processing"] = Field(description="Status of the Job")
     error_message:str| None = Field(description="Error message if any", default= None)

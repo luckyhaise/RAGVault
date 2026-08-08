@@ -1,13 +1,12 @@
 import pytest
 from app.api.dependencies.upload_file_validation import validate_file
 import io
-from pathlib import Path
 
 from fastapi.testclient import TestClient
-from fastapi import UploadFile , HTTPException
+from fastapi import UploadFile 
 from fastapi import FastAPI
 
-file_path = Path(__file__).with_name("output.txt")
+
 MAX_FILE_SIZE = 50 * 1024 * 1024
 
 ALLOWED_FILE_TYPES = [

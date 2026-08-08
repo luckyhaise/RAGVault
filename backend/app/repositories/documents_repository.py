@@ -9,6 +9,7 @@ async def create_document(user_id:UUID,session:AsyncSession,title:str,original_t
     return document
 async def delete_document(user_id:UUID,session:AsyncSession,document_id:UUID):
     stmt = delete(Documents).where(Documents.id == document_id,Documents.user_id == user_id)
-    await session.execute(stmt)
+    result = await session.execute(stmt)
+    return result
     
     
