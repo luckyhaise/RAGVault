@@ -1,7 +1,8 @@
 from app.services.user_services import create_account_service , User_Create , match_password , find_user_by_user_name , login_service 
 from app.core.exceptions.exceptions import DataBaseError
-from conftest  import db_session, TEST_ACCOUNTS
+from account_helper import ensure_user , TEST_ACCOUNTS
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession 
 
 def create_user():
     return dict(TEST_ACCOUNTS[0])
@@ -9,7 +10,7 @@ def create_user():
 
 @pytest.mark.parametrize("user", TEST_ACCOUNTS)
 @pytest.mark.asyncio
-async def test_create_account_services(db_session:db_session, user):
+async def test_create_account_services(db_session:AsyncSession, user):
     existing = await find_user_by_user_name(session=db_session, user_name=user["user_name"])
     if existing is None:
         account = await create_account_service(session=db_session,user=User_Create(**user))
@@ -25,7 +26,7 @@ async def test_create_account_services(db_session:db_session, user):
     assert user1.id == account.id
 
 @pytest.mark.asyncio
-async def test_create_account_rejects_emails_aready_present(db_session:db_session):
+async def test_create_account_rejects_emails_aready_present(db_session:AsyncSession):
     user = create_user()
     # Adding 9 at the end of everyfield to change them except for email
     for key in user:
@@ -38,7 +39,7 @@ async def test_create_account_rejects_emails_aready_present(db_session:db_sessio
     assert "uq_email" in excinfo.value.internal_message
 
 @pytest.mark.asyncio
-async def test_create_account_rejects_phone_already_present(db_session:db_session):
+async def test_create_account_rejects_phone_already_present(db_session:AsyncSession):
    user = create_user()
    for key in user:
       if key != "phone":
@@ -48,7 +49,7 @@ async def test_create_account_rejects_phone_already_present(db_session:db_sessio
    assert excinfo.value.error_code == "PHONE_NUMBER_ALREADY_EXISTS"
    assert "uq_phone" in excinfo.value.internal_message
 @pytest.mark.asyncio
-async def test_create_account_rejects_username_already_present(db_session:db_session):
+async def test_create_account_rejects_username_already_present(db_session:AsyncSession):
    user = create_user()
    for key in user:
       if key == "email":

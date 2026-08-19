@@ -6,18 +6,13 @@ from app.services.injestion_job_service import (
     start_ingestion_job,
     ingestion_job_failed,
 )
-from app.services.user_services import (
-    create_account_service,
-    find_user_by_user_name,
-    User_Create,
-)
-from conftest import db_session,  ensure_user
 
+from account_helper import ensure_user
 
 
 
 @pytest.mark.asyncio
-async def test_ingestion_job_failed_marks_job_failed_with_error(db_session: db_session):
+async def test_ingestion_job_failed_marks_job_failed_with_error(db_session):
     user = await ensure_user(db_session)
     job = await start_ingestion_job(
         user_id=user.id,
@@ -40,7 +35,7 @@ async def test_ingestion_job_failed_marks_job_failed_with_error(db_session: db_s
 
 @pytest.mark.asyncio
 async def test_ingestion_job_failed_raises_not_found_for_missing_job(
-    db_session: db_session,
+    db_session,
 ):
     missing_job_id = uuid4()
 
@@ -57,7 +52,7 @@ async def test_ingestion_job_failed_raises_not_found_for_missing_job(
 
 
 @pytest.mark.asyncio
-async def test_ingestion_job_failed_accepts_custom_status(db_session: db_session):
+async def test_ingestion_job_failed_accepts_custom_status(db_session):
     user = await ensure_user(db_session)
     job = await start_ingestion_job(
         user_id=user.id,

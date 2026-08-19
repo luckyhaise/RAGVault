@@ -3,7 +3,7 @@ from app.models.models import Users
 from sqlalchemy.ext.asyncio import AsyncSession 
 from sqlalchemy import select
 
-async def save_user(phone_number:int,name:str,email_id:str,hashed_password:str,user_name:str,session:AsyncSession):
+async def save_user(phone_number:str,name:str,email_id:str,hashed_password:str,user_name:str,session:AsyncSession):
     user = Users(user_name = user_name,phone = phone_number , name = name,email = email_id , password = hashed_password)
     session.add(user)
     await session.flush()

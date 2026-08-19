@@ -1,33 +1,40 @@
-import resend
 import logging
 from app.core.config import settings
 from app.core.exceptions.email_exceptions import EmailDeliveryError
 
 logger = logging.getLogger(__name__)
-# set api key for the service
-resend.api_key = settings.resend_api_key
 
-async def send_email(recipient_email:str,html:str,subject:str,otp:int=None):
+
+import requests
+
+BREVO_API_KEY = settings.brevo_api_key
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
+
+def send_email(payload ) -> bool:
+    """Sends a transactional OTP email using the Brevo HTTP API."""
+    
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "api-key": BREVO_API_KEY
+    }
+    
+    payload = payload
+    
     try:
-     resend.Emails.send(
-        {
-           "from": settings.verification_email,
-           "to": [recipient_email],
-           "subject" : subject,
-           "html" : html
-        }
-     )
-     logger.info("Verification email sent | recipient=%s", recipient_email)
-    except Exception as exc:
-       logger.error("Failed to send verification email | recipient=%s | error=%s", recipient_email, exc)
-       raise EmailDeliveryError(
-          internal_message=str(exc)
-       )
+        response = requests.post(BREVO_URL, json=payload, headers=headers)
+        
+        if response.status_code in [200, 201, 202]:
+            logger.info("Email sent sucessfully")
+        else:
+            logger.error(f"Failed to send email. Status code: {response.status_code}, Response: {response.text}")
+            raise EmailDeliveryError(internal_message=response.text,
+                                     public_message="Failed to send email, Try again later",
+                                     status_code=response.status_code)
+            
+    except Exception as e:
+        logger.exception(f"An error occurred while calling Brevo API: {e}")
+        raise EmailDeliveryError(internal_message=str(e),
+                                 public_message="Failed to send email, Try again later",
+                                 )
 
-# def send_10_mails_to_myself():
-#    for _ in range(2):
-#       send_email(recipient_email="dublucky2@gmail.com",subject="big boy lucky",html=""" 
-
-#         <h1>BIG BOY LUCKy </h1>
-# """)
-# send_10_mails_to_myself()

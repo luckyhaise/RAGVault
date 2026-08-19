@@ -2,12 +2,12 @@ import pytest
 from uuid import uuid4
 
 from app.services.injestion_job_service import start_ingestion_job
+from account_helper import ensure_user
 
-from conftest import db_session, ensure_user
 
 
 @pytest.mark.asyncio
-async def test_start_ingestion_job_creates_pending_job(db_session: db_session):
+async def test_start_ingestion_job_creates_pending_job(db_session):
     user = await ensure_user(db_session)
     idempotency_key = uuid4()
 

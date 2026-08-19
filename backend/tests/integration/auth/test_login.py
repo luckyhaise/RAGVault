@@ -1,7 +1,7 @@
 import pytest
 from app.core.security import decode_access_token 
 from app.services.user_services import login_service , User_Login , create_account_service , User_Create , find_user_by_user_name , UnauthorizedError
-from conftest import db_session, TEST_ACCOUNTS
+from account_helper import ensure_user , TEST_ACCOUNTS
 from app.models.models import Users
 from uuid import UUID
 import random
@@ -14,7 +14,7 @@ from app.models.models import Users
       ]
 )
 @pytest.mark.asyncio
-async def test_login_service_rejects_user_id_and_email_not_found(user_name,email,password,db_session:db_session):
+async def test_login_service_rejects_user_id_and_email_not_found(user_name,email,password,db_session):
     with pytest.raises(UnauthorizedError) as excinfo:
           await login_service(session=db_session,user=User_Login(user_name=user_name,password=password,email=email)) 
     assert "Account Not found"  in excinfo.value.internal_message 
@@ -29,7 +29,7 @@ async def test_login_service_rejects_user_id_and_email_not_found(user_name,email
       ]
 )
 @pytest.mark.asyncio
-async def test_login_service_works_with_username_and_email(db_session:db_session, user_name,email,password):
+async def test_login_service_works_with_username_and_email(db_session, user_name,email,password):
     account = next(
         a for a in TEST_ACCOUNTS
         if a["user_name"] == user_name or a["email"] == email
@@ -58,7 +58,7 @@ async def test_login_service_works_with_username_and_email(db_session:db_session
       ]
 )
 @pytest.mark.asyncio
-async def test_login_service_rejects_wrong_passwords(db_session:db_session,user_name,password):
+async def test_login_service_rejects_wrong_passwords(db_session,user_name,password):
 
      
           

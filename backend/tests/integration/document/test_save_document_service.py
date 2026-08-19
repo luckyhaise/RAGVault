@@ -5,7 +5,7 @@ import string
 import random
 from app.models.models import Documents , Ingestion_Jobs
 from app.core.exceptions.exceptions import AppError, DataBaseError
-from conftest import db_session , ensure_user
+from account_helper import ensure_user
 from uuid import uuid4
 from app.utils.chunk_data import chuckey_chunkey
 from unittest.mock import patch
@@ -14,7 +14,7 @@ from unittest.mock import patch
 document = "".join(random.choices(string.ascii_letters + string.digits,k=1000))
 
 @pytest.mark.asyncio 
-async def test_save_document_service_saves_document_and_idempotancy_key_works(db_session:db_session):
+async def test_save_document_service_saves_document_and_idempotancy_key_works(db_session):
     user =  await ensure_user(db_session=db_session)
     idempotency_key = uuid4()
 
@@ -40,7 +40,7 @@ async def test_save_document_service_saves_document_and_idempotancy_key_works(db
     assert saved_document.get("id") == saved_document2.get("id")
 
 @pytest.mark.asyncio
-async def test_save_document_saves_preserves_chunks_and_document(db_session:db_session):
+async def test_save_document_saves_preserves_chunks_and_document(db_session):
     user =  await ensure_user(db_session=db_session)
     idempotency_key = uuid4()
 
@@ -67,7 +67,7 @@ async def test_save_document_saves_preserves_chunks_and_document(db_session:db_s
 @pytest.mark.asyncio
 # @patch("app.services.document_service.create_document")
 @patch("app.services.document_service.start_ingestion_job") 
-async def test_start_ingestion_job_fails(mock_start_ingestion_job,db_session:db_session):
+async def test_start_ingestion_job_fails(mock_start_ingestion_job,db_session):
     user = await ensure_user(db_session=db_session)
     
     error = DataBaseError(public_message="Something went wrong. Please try again later",
@@ -98,7 +98,7 @@ async def test_start_ingestion_job_fails(mock_start_ingestion_job,db_session:db_
     mock_start_ingestion_job.assert_awaited_once()
 
 @pytest.mark.asyncio 
-async def test_save_chunks_failed_and_ingestion_job_marked(db_session:db_session):
+async def test_save_chunks_failed_and_ingestion_job_marked(db_session):
     idempotency_key = uuid4()
     user = await ensure_user(db_session=db_session)
     user_id = user.id 

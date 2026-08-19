@@ -96,10 +96,9 @@ class Llm_Runs(Base):
 class EmailVerificationOtp(Base):
     __tablename__ = "email_verification_otp"
     id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),default=uuid4,primary_key=True)
-    user_id : Mapped[UUID_PY] = mapped_column(ForeignKey("users.id",ondelete="CASCADE"))
+    email : Mapped[str] = mapped_column(EmailType,nullable=False)
     otp_hash: Mapped[str] = mapped_column(Text,nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False)
-    attempts: Mapped[int] = mapped_column(default=0,nullable= False)
     created_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(UTC),
         nullable=False,

@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.core.exceptions.handlers import register_expection_handler
 from app.core.log_config.configarion import configure_logging
+from app.db.database import engine
+from app.models.models import Base
 import logging
 from contextlib import asynccontextmanager
 
@@ -13,6 +15,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
    logger.info("Ragvault app started")
+   async with engine.begin() as conn:
+       await conn.run_sync(Base.metadata.create_all)
    yield
    logger.info("Ragvault app stopped")
 

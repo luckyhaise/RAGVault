@@ -41,7 +41,7 @@ def decode_access_token(token:str)-> str:
        algorithms= [settings.jwt_algorithm]
      
     )
-   user_id = decoded.get("sub")
+   user_id = str(decoded.get("sub"))
    return user_id
 
 

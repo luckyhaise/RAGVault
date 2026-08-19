@@ -32,7 +32,7 @@ class ConflictError(AppError):
 
 class ForbiddenError(AppError):
       def __init__(self, internal_message:str|None = None,public_message = "You do not have permission to perform this action",  error_code="App_error"):
-            super().__init__(public_message, status_code = 403, internal_message= internal_message, error_code="FORBIDDEN")
+            super().__init__(public_message, status_code = 403, internal_message= internal_message, error_code="FORBIDDEN",)
 
 
 class UnauthorizedError(AppError):

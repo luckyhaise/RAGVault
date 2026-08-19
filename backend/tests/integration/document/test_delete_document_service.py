@@ -3,7 +3,7 @@ import pytest
 from app.services.document_service import delete_document_service , save_document_service , CreateDocumentsCommand , DeleteDocumentCommand
 
 from app.models.models import Documents
-from conftest import db_session , ensure_user
+from account_helper import ensure_user
 import string
 from app.core.exceptions.exceptions import DataBaseError
 import random
@@ -24,7 +24,7 @@ def create_integrity_error(constraint_name):
 
 
 @pytest.mark.asyncio
-async def test_delete_document(db_session:db_session):
+async def test_delete_document(db_session):
     user = await ensure_user(db_session=db_session)
     idempotency_key = uuid4()
     saved_job =  await save_document_service(session=db_session,command=CreateDocumentsCommand(
@@ -45,7 +45,7 @@ async def test_delete_document(db_session:db_session):
     assert retrieved_document is None
     assert result.rowcount >0
 @pytest.mark.asyncio
-async def test_delete_document_fails(db_session:db_session):
+async def test_delete_document_fails(db_session):
     user = await ensure_user(db_session=db_session)
     with patch("app.services.document_service.delete_document",
     side_effect=create_integrity_error("uq_email"),):
@@ -60,7 +60,7 @@ async def test_delete_document_fails(db_session:db_session):
 
 @pytest.mark.asyncio
 async def test_delete_document_does_not_delete_another_users_document(
-    db_session: db_session,
+    db_session,
 ):
     owner = await ensure_user(db_session=db_session)
     other_user = await ensure_user(db_session=db_session,i=2)
