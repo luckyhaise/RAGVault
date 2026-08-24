@@ -1,19 +1,19 @@
-from enum import verify
-from turtle import pu
-from typing import Literal
+from datetime import UTC, datetime , timedelta
 
+from celery.app.defaults import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-
+from dataclasses import dataclass
 from uuid import UUID
 
-from starlette import status
+from sqlalchemy.exc import SQLAlchemyError
+from app.core.config import settings
 from app.models.models import Users
-from app.schemas.user_schema import UserCreate, UserLogin , ForgotPasswordRequest, ForgotPasswordChange , UserCreateRequest
-from app.core.exceptions.database_errors import run_database_operation
-from app.core.security import hash_password, create_access_token , match_password
-from app.repositories.users_repository import save_user , find_user_by_user_name , find_user_by_email 
-from app.core.exceptions.exceptions import  UnauthorizedError
+from app.schemas.user_schema import ResetPassword, UserCreate, UserLogin , ForgotPasswordRequest, ForgotPasswordChange , UserCreateRequest
+from app.core.exceptions.database_errors import run_database_operation, translate_database_error
+from app.core.security import hash_password, create_token , match_password , decode_token
+from app.repositories.users_repository import reset_password, save_user , find_user_by_user_name , find_user_by_email , create_session , find_user_session_by_user_id_for_update
+from app.core.exceptions.exceptions import  AppError, UnauthorizedError
 from app.services.helpers.otp_helper import otp_request_hanlder_for_user_service,verify_otp, EmailDeliveryError
 from app.core.exceptions.exceptions import ValidationAppError
 
@@ -26,19 +26,19 @@ async def find_user_account_from_email_or_user_name(session:AsyncSession,user_na
         user_detail = await find_user_by_user_name(session=session,user_name=user_name)
     elif email is not None:
         user_detail = await find_user_by_email(session=session,email=email)
-    else: 
+    else:
         raise ValidationAppError(public_message="Please enter email or user name")
     if user_detail is None:
         raise UnauthorizedError(internal_message=f"Account Not found. User_name:{user_name} User_email:{email} ",
             public_message="Invalid username/email or password")
-    return user_detail 
-    
+    return user_detail
+
 
 
 async def verify_account_service(session:AsyncSession,user_create:UserCreateRequest|None=None,user_login:ForgotPasswordRequest|None=None):
-    """""This service can be used to verify account. This generates a otp and sends it to user's email. 
+    """""This service can be used to verify account. This generates a otp and sends it to user's email.
          It returns a celery task id of email request and OTP id"""
-    
+
     user = user_login if user_login is not None else user_create
     if user is None:
         raise ValidationAppError(public_message="Please enter username or email")
@@ -49,8 +49,8 @@ async def verify_account_service(session:AsyncSession,user_create:UserCreateRequ
     else :
         email = user.email
     otp_id,task_id =await otp_request_hanlder_for_user_service(session=session,purpose=purpose,email=str(email))
-    return otp_id, task_id 
-  
+    return otp_id, task_id
+
 async def forgot_login_password_service(session:AsyncSession,user:ForgotPasswordChange,otp_id:UUID):
     allowed = await verify_otp(otp=user.otp,otp_id=otp_id,purpose="login",session=session,email=str(user.email))
     async def operation():
@@ -66,8 +66,8 @@ async def forgot_login_password_service(session:AsyncSession,user:ForgotPassword
                            error_code="UNAUTHORIZED",
                            status_code=401
                        )
-        
-    
+
+
 
 async def create_account_service(session:AsyncSession,user:UserCreate,otp:str,otp_id:UUID):
   allowed =await verify_otp(otp=otp,otp_id=otp_id,purpose="create_account",session=session,email=user.email)
@@ -78,16 +78,16 @@ async def create_account_service(session:AsyncSession,user:UserCreate,otp:str,ot
                             name= user.name,
                             email_id=user.email,
                             hashed_password=hash_password(user.password))
-    
-    
-    
+
+
+
         await session.commit()
         logger.info("Account created | user_id=%s | user_name=%s", new_user.id, new_user.user_name)
         return new_user
   if allowed is True :
-      return await run_database_operation(session=session,operation=operation) 
+      return await run_database_operation(session=session,operation=operation)
   else :
-      
+
       raise EmailDeliveryError(
                          public_message="Incorrect OTP. Please try again",
                          error_code="UNAUTHORIZED",
@@ -101,16 +101,142 @@ async def login_service(session:AsyncSession,user:UserLogin):
      user_detail = await find_user_by_email(session=session,email=str(user.email))
     if user_detail is None:
       raise UnauthorizedError(internal_message=f"Account Not found. User_name:{user.user_name} User_email:{user.email} ",public_message="Invalid username/email or password")
-    
-    if not match_password(password=user.password, hashed_password=user_detail.password) : 
-      raise UnauthorizedError(public_message="Invalid username/email or password",internal_message=f"Incorrect password input user_name: {user_detail.user_name} , password: {user.password}")
+
+    if not match_password(password=user.password, hashed_password=user_detail.password) :
+      raise UnauthorizedError(public_message="Invalid username/email or password",internal_message=f"Incorrect password input user_name: {user_detail.user_name}")
     user_id = user_detail.id
-    token = create_access_token(subject=str(user_id))
+    token = create_token(subject=str(user_id),create_refresh_token=True)
     logger.info("Login successful | user_id=%s", user_id)
-    return {"access_token":token}
+
+    user_session =  await create_session(session=session,
+        expires_at=token.refresh_expires_at,
+        is_revoked=False,
+        refresh_token_jti=token.refresh_jti,
+        user_id=user_id)
+    await session.commit()
+
+    logger.info("Session Created | session_id=%s", user_session.id)
+    return {"access_token":token.access_token,
+           "refresh_token":token.refresh_token}
+
   return await run_database_operation(session=session,operation=operation)
 
+@dataclass
+class Token:
+    access_token:str
+    refresh_token:str|None
+
+async def refresh_token_service(session:AsyncSession,refresh_token:str):
+    try:
+        decoded= decode_token(expected_type="refresh",token=refresh_token)
+        now = datetime.now(UTC)
 
 
+        refresh_renew_threshold = timedelta(days=settings.refresh_token_expire_days *  .25)
+        user_id = UUID(decoded["sub"])
+        async with session.begin():
+                user_session = await find_user_session_by_user_id_for_update(session=session,user_id=user_id)
+
+
+                if user_session is None:
+                    logger.warning("No session is found from the | user_id=%s | refresh_token_jti=%s",user_id,decoded["jti"])
+                    raise UnauthorizedError(internal_message=f"No session is found from the user_id:{user_id}| from refresh_token",
+                        public_message="Your session is invalid please login again")
+                if decoded["jti"] != user_session.refresh_token_jti:
+                        logger.warning("The refresh_token_jti does not match session_jti | session_user_id=%s | session_jti=%s | refresh_token_jti=%s",
+                        user_session.user_id, user_session.refresh_token_jti,decoded["jti"])
+                        raise UnauthorizedError(
+                            internal_message="Refresh token does not match session",
+                            public_message="Your session is invalid. Please login again.",
+                        )
+
+                if user_session.expires_at < now:
+                    logger.warning("Refresh token for user_id=%s has expired",user_id)
+                    raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has expired",
+                        public_message="Your session has expired please login again")
+                if user_session.is_revoked is True:
+                    logger.warning("Refresh token for user_id=%s has been revoked",user_id)
+                    raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has is revoked",
+                        public_message="Your session has been revoked please login again")
+                should_rotate_refresh_token = (
+                        user_session.expires_at - now < refresh_renew_threshold
+                    )
+
+                token = create_token(subject=str(user_id),create_refresh_token=should_rotate_refresh_token)
+                if should_rotate_refresh_token:
+                    user_session.expires_at = token.refresh_expires_at
+                    user_session.refresh_token_jti = token.refresh_jti
+                    return Token(access_token=token.access_token,refresh_token=token.refresh_token)
+
+                return Token(access_token=token.access_token,refresh_token=None)
+
+    except (UnauthorizedError,AppError):
+        raise
+    except SQLAlchemyError as exc:
+       raise translate_database_error(exc=exc)
+    except Exception as exc:
+        logger.exception("Unexpected error occured in refresh token service")
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
+
+
+    # expires_at = decoded.get("exp")
+
+async def logout_service(session:AsyncSession,refresh_token:str):
+    try:
+        now = datetime.now(UTC)
+        decoded= decode_token(token=refresh_token,expected_type="refresh")
+        user_id = decoded["sub"]
+        async with session.begin():
+            user_session =await find_user_session_by_user_id_for_update(session=session,user_id=user_id)
+            if user_session is None :
+                logger.warning("No user session exists for the refresh token with user id=%s",user_id)
+                raise UnauthorizedError(internal_message=f"No user session exists for the refresh token with user id:{user_id}",
+                    public_message="Invalid session. Please login again")
+            if user_session.refresh_token_jti != decoded["jti"]:
+                logger.warning("The refresh_token_jti does not match session_jti | session_user_id=%s | session_jti=%s | refresh_token_jti=%s",
+                user_session.user_id, user_session.refresh_token_jti,decoded["jti"])
+                raise UnauthorizedError(
+                    internal_message="Refresh token does not match session",
+                    public_message="Your session is invalid. Please login again.",
+                )
+            if user_session.expires_at < now:
+                    logger.warning("Refresh token for user_id=%s has expired",user_id)
+                    raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has expired",
+                        public_message="Your session has expired please login again")
+            if user_session.is_revoked == True:
+                logging.warning("Duplicate logout request for an already revoked account by user_id=%s",user_id)
+                raise UnauthorizedError(internal_message="Request dected to revoke the account which has already been revoked",
+                    public_message="Your account has already been logged out. Please login again")
+            else :
+                user_session.is_revoked = True
+                return {"detail":f"Logout request sucessful {user_id}"}
+    except (UnauthorizedError,AppError):
+        raise
+    except SQLAlchemyError as exc:
+       raise translate_database_error(exc=exc)
+    except Exception as exc:
+        logger.exception("Unexpected error occured in refresh token service")
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
+
+async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPassword):
+    try:
+            async with session.begin():
+                result =  await reset_password(session=session,user_id=user_id)
+                if result is None:
+                    raise UnauthorizedError(public_message="Invalid session.Please login again",internal_message=f"No user account has been found for change password request by user_id: {user_id}")
+                if result.password != user.old_password:
+                    raise UnauthorizedError(public_message="Incorrect Old password entered by the user",internal_message=f"Password cannot be change for user_id:{user_id} due to password mismatch")
+                elif result.password == user.old_password:
+                    result.password =  user.new_password
+                
+                id = result.id
+            return {"detail":f"User password has been changed {result.id}"}
+    except (UnauthorizedError,AppError):
+        raise
+    except SQLAlchemyError as exc:
+       raise translate_database_error(exc=exc)
+    except Exception as exc:
+        logger.exception("Unexpected error occured in refresh token service")
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
 
 

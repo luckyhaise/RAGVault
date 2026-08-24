@@ -44,7 +44,7 @@ class UnauthorizedError(AppError):
         super().__init__(
             public_message=public_message,
             status_code=401,
-            internal_message=internal_message,
+            internal_message=str(internal_message),
             error_code="UNAUTHORIZED",
         )
 class ValidationAppError(AppError):

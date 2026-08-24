@@ -1,4 +1,3 @@
-from tokenize import single_quoted
 
 from pydantic import BaseModel, Field ,  EmailStr , model_validator , ConfigDict ,  AfterValidator
 from uuid import UUID
@@ -116,10 +115,7 @@ class UserCreate(BaseModel):
     )
     phone: PhoneStr
     otp:str = Field(min_length=6,max_length=6)
-    
-class UserCreateRequestResponse(BaseModel):
-    otp_id: UUID
-    task_id : UUID
+
 class ForgotPasswordRequest(BaseModel):
     user_name: str | None = Field(
         default=None,
@@ -142,17 +138,31 @@ class ForgotPasswordChange(BaseModel):
                 "Provide either email or username"
             )
         return self  
+class ResetPassword(BaseModel):
+    old_password:str
+    new_password:NewPassword
 
 class UserCreateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     email: EmailStr 
     id : UUID
     name: str 
-class RequestCreateAccountResponse(BaseModel):
+class CreateAccountRequestResponse(BaseModel):
     otp_id:UUID
     task_id:UUID
 class ForgotPasswordRequestResponse(BaseModel):
     otp_id:UUID
     task_id:UUID
-class UserLoginResponse(BaseModel):
-    access_token:str 
+
+
+class LoginResponse(BaseModel):
+    access_token:str
+    refresh_token:str
+
+class RefreshTokenResponse(BaseModel):
+    access_token:str =   Field(
+        ...,
+        min_length=1,
+        description="JWT access token"
+    )
+    refresh_token:str = Field(...,min_length=1,description="JWT refresh token")

@@ -1,7 +1,8 @@
 from uuid import uuid4, UUID as UUID_PY , uuid1
-from sqlalchemy import String , UUID , VARCHAR , Text,Integer,literal ,UniqueConstraint 
+from sqlalchemy import Boolean, String , UUID , VARCHAR , Text,Integer,literal ,UniqueConstraint 
 from datetime import datetime , UTC
 from sqlalchemy import DateTime , ForeignKey , Enum 
+from sqlalchemy.sql import Nullable
 from sqlalchemy_utils import EmailType 
 from typing import Literal
 from sqlalchemy.orm import DeclarativeBase , mapped_column, Mapped, relationship 
@@ -23,6 +24,7 @@ class Users(Base):
     documents = relationship("Documents",back_populates="user",cascade="all, delete-orphan")
     llm_runs = relationship("Llm_Runs",back_populates="user",cascade="all, delete-orphan")
     ingestion_jobs = relationship("Ingestion_Jobs",back_populates="user",cascade="all, delete-orphan") 
+    sessions = relationship("UserSession",back_populates="user")
     __table_args__ = (
         UniqueConstraint("phone", name="uq_phone"),
         UniqueConstraint("email", name="uq_email"),
@@ -103,3 +105,12 @@ class EmailVerificationOtp(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),ForeignKey("users.id",ondelete="CASCADE"),nullable=False)
+    refresh_token_jti:Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True),nullable=False,unique=True,index=True)
+    is_revoked:Mapped[bool] = mapped_column(Boolean,default=False,nullable=False)
+    created_at:Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,default=lambda:datetime.now(UTC))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    user = relationship("Users",back_populates="sessions")

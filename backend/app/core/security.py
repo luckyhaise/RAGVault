@@ -1,11 +1,13 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError 
-from jose import jwt 
-# from jose.exceptions import JWTError
+from jose import jwt  , JWTError
 from datetime import  datetime,timedelta , UTC
+
 from app.core.config import settings
 from typing import Any
-from uuid import uuid4
+from app.core.exceptions.exceptions import UnauthorizedError
+from uuid import uuid4 , UUID 
+from dataclasses import dataclass
 
 
 hasher = PasswordHasher()
@@ -21,27 +23,69 @@ def match_password(password: str, hashed_password: str):
       return hasher.verify(hash=hashed_password, password=password)
      except VerifyMismatchError:
          return False
-     
+@dataclass
+class TokenResult:
+    access_token: str
+    refresh_token: str | None
+    refresh_expires_at: datetime | None
+    refresh_jti: UUID | None
+   
 
-def create_access_token(subject: str) -> str:
+
+def create_token(subject: str,create_refresh_token:bool=False)  :
     now = datetime.now(UTC)
     expire_at = now + timedelta(minutes=settings.access_token_expire_minutes)
-    payload:dict[str, Any] = {
+    access_payload:dict[str, Any] = {
         "sub" : str(subject),
         "iat" : int(now.timestamp()),
         "exp" : int(expire_at.timestamp()),
-        "jti": str(uuid4())  
+        "jti": str(uuid4()),  
+         "type": "access"
     }
-    token = jwt.encode(payload,key=settings.jwt_secret_key,algorithm=settings.jwt_algorithm)
-    return token 
-    
-def decode_access_token(token:str)-> str:
-   decoded =  jwt.decode(token=token,
-       key= settings.jwt_secret_key,
-       algorithms= [settings.jwt_algorithm]
-     
+    access_token = jwt.encode(access_payload,key=settings.jwt_secret_key,algorithm=settings.jwt_algorithm)
+    if  create_refresh_token is True:
+        refresh_expire_at=  now + timedelta(days=settings.refresh_token_expire_days)
+        jti = uuid4()
+        refresh_payload = {
+            "sub": str(subject),
+            "iat": int(now.timestamp()),
+            "exp" : int(refresh_expire_at.timestamp()),
+            "type":"refresh",
+            "jti":str(jti)
+            
+        }
+        refresh_token = jwt.encode(refresh_payload,key=settings.jwt_secret_key,algorithm=settings.jwt_algorithm)
+        return TokenResult(
+            access_token=access_token,
+            refresh_expires_at=refresh_expire_at,
+            refresh_jti=jti,
+            refresh_token=refresh_token
+        )
+    return TokenResult(
+        access_token=access_token,refresh_expires_at=None,refresh_jti=None,refresh_token=None
     )
-   user_id = str(decoded.get("sub"))
-   return user_id
+    
+def decode_token(token:str,expected_type:str):
+    try:
+        payload = jwt.decode(token, key=settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    
+        
+        if payload.get("type") != expected_type:
+            raise UnauthorizedError(
+                public_message = "Your login session is invalid or expired. Please sign in.",
 
+                internal_message=f"Invalid token type. Expected {expected_type} token."
+            )
+        if datetime.fromtimestamp(payload["exp"] ,tz=UTC) < datetime.now(UTC):
+                raise UnauthorizedError(internal_message="Refresh token send to refesh_token_service is Expired",
+                    public_message="Your session is invalid please login again")
 
+        
+        return payload
+        
+    except JWTError:
+        raise UnauthorizedError(
+            public_message = "Your login session is invalid or expired. Please sign in.",
+            internal_message="Could not validate credentials or token has expired",
+            
+        )
