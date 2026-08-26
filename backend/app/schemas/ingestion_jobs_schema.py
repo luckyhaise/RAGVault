@@ -6,7 +6,7 @@ class Create_Ingestion_Jobs(BaseModel):
     user_id: UUID = Field(description="The unique identifier of the user who owns this Job")
     document_id : UUID = Field(description="The unique identifier of the document for this Job")
 
-class Ingestion_Jobs_Response(BaseModel):
+class IngestionJobsResponse(BaseModel):
     id:UUID = Field(description="Unique indetifier of the jobs")
     user_id: UUID = Field(description="The unique identifier of the user who owns this Job")
     document_id:UUID| None = Field(description="Unique indentifier for documents",default= None)

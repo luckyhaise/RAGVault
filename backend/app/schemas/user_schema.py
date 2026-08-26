@@ -160,6 +160,7 @@ class LoginResponse(BaseModel):
     refresh_token:str
 
 class RefreshTokenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     access_token:str =   Field(
         ...,
         min_length=1,

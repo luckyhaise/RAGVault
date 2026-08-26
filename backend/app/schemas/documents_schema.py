@@ -14,11 +14,13 @@ class Create_Documents_Chunks(BaseModel):
     chunk_index : int = Field(description="Index Number of the specific chunk")
     content: str = Field(max_length=120,min_length=1,description="Content of the chunks document is divided into")
 
-class Retrieve_Chunks(BaseModel):
-     model_config = ConfigDict(from_attributes=True)
-     chunk_index: int = Field(description="Index of the chunks")
-     content : str = Field(description="The content of each individual chunk")
-     created_at : datetime = Field(description="Time when the chunk was created")
+class RetrieveAllUserDocuments(BaseModel):
+    user_id:UUID 
+    limit:int = Field(..., le=100,ge=1,description="Number of rows in a page")
+    page:int = Field(...,le=1,description="Page number")
+
+class RetrieveDocument(BaseModel):
+    
 
 class Retrieve_Document(BaseModel):
     id: UUID = Field(description="Unique identifier of the document")
@@ -31,3 +33,4 @@ class Retrieve_Document(BaseModel):
 class DeleteDocumentCommand(BaseModel):
     user_id : UUID = Field(description="The unique identifier of the user who owns this document")
     id: UUID = Field(description="Unique identifier of the document")
+

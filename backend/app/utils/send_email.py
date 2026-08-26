@@ -27,14 +27,17 @@ def send_email(payload ) -> bool:
         if response.status_code in [200, 201, 202]:
             logger.info("Email sent sucessfully")
         else:
-            logger.error(f"Failed to send email. Status code: {response.status_code}, Response: {response.text}")
-            raise EmailDeliveryError(internal_message=response.text,
-                                     public_message="Failed to send email, Try again later",
-                                     status_code=response.status_code)
+            raise EmailDeliveryError(
+                internal_message=f"Failed to send email. Status code: {response.status_code}, Response: {response.text}",
+                public_message="Failed to send email, Try again later",
+                status_code=response.status_code,
+            )
             
+    except EmailDeliveryError:
+        raise
     except Exception as e:
-        logger.exception(f"An error occurred while calling Brevo API: {e}")
-        raise EmailDeliveryError(internal_message=str(e),
-                                 public_message="Failed to send email, Try again later",
-                                 )
+        raise EmailDeliveryError(
+            internal_message=f"An error occurred while calling Brevo API: {e}",
+            public_message="Failed to send email, Try again later",
+        )
 

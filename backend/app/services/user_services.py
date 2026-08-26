@@ -1,11 +1,13 @@
 from datetime import UTC, datetime , timedelta
+from multiprocessing.context import AuthenticationError
+from tabnanny import check
 
 from celery.app.defaults import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from dataclasses import dataclass
 from uuid import UUID
-
+from app.infrastructure.redis.rate_limit import redis_check_user_rate_limit
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.models.models import Users
@@ -139,23 +141,25 @@ async def refresh_token_service(session:AsyncSession,refresh_token:str):
 
 
                 if user_session is None:
-                    logger.warning("No session is found from the | user_id=%s | refresh_token_jti=%s",user_id,decoded["jti"])
-                    raise UnauthorizedError(internal_message=f"No session is found from the user_id:{user_id}| from refresh_token",
-                        public_message="Your session is invalid please login again")
+                    raise UnauthorizedError(
+                        internal_message=f"No session is found from the | user_id={user_id} | refresh_token_jti={decoded['jti']}",
+                        public_message="Your session is invalid please login again",
+                    )
                 if decoded["jti"] != user_session.refresh_token_jti:
-                        logger.warning("The refresh_token_jti does not match session_jti | session_user_id=%s | session_jti=%s | refresh_token_jti=%s",
-                        user_session.user_id, user_session.refresh_token_jti,decoded["jti"])
                         raise UnauthorizedError(
-                            internal_message="Refresh token does not match session",
+                            internal_message=(
+                                f"The refresh_token_jti does not match session_jti | "
+                                f"session_user_id={user_session.user_id} | "
+                                f"session_jti={user_session.refresh_token_jti} | "
+                                f"refresh_token_jti={decoded['jti']}"
+                            ),
                             public_message="Your session is invalid. Please login again.",
                         )
 
                 if user_session.expires_at < now:
-                    logger.warning("Refresh token for user_id=%s has expired",user_id)
                     raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has expired",
                         public_message="Your session has expired please login again")
                 if user_session.is_revoked is True:
-                    logger.warning("Refresh token for user_id=%s has been revoked",user_id)
                     raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has is revoked",
                         public_message="Your session has been revoked please login again")
                 should_rotate_refresh_token = (
@@ -175,7 +179,6 @@ async def refresh_token_service(session:AsyncSession,refresh_token:str):
     except SQLAlchemyError as exc:
        raise translate_database_error(exc=exc)
     except Exception as exc:
-        logger.exception("Unexpected error occured in refresh token service")
         raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
 
 
@@ -189,24 +192,28 @@ async def logout_service(session:AsyncSession,refresh_token:str):
         async with session.begin():
             user_session =await find_user_session_by_user_id_for_update(session=session,user_id=user_id)
             if user_session is None :
-                logger.warning("No user session exists for the refresh token with user id=%s",user_id)
-                raise UnauthorizedError(internal_message=f"No user session exists for the refresh token with user id:{user_id}",
-                    public_message="Invalid session. Please login again")
-            if user_session.refresh_token_jti != decoded["jti"]:
-                logger.warning("The refresh_token_jti does not match session_jti | session_user_id=%s | session_jti=%s | refresh_token_jti=%s",
-                user_session.user_id, user_session.refresh_token_jti,decoded["jti"])
                 raise UnauthorizedError(
-                    internal_message="Refresh token does not match session",
+                    internal_message=f"No user session exists for the refresh token with user id={user_id}",
+                    public_message="Invalid session. Please login again",
+                )
+            if user_session.refresh_token_jti != decoded["jti"]:
+                raise UnauthorizedError(
+                    internal_message=(
+                        f"The refresh_token_jti does not match session_jti | "
+                        f"session_user_id={user_session.user_id} | "
+                        f"session_jti={user_session.refresh_token_jti} | "
+                        f"refresh_token_jti={decoded['jti']}"
+                    ),
                     public_message="Your session is invalid. Please login again.",
                 )
             if user_session.expires_at < now:
-                    logger.warning("Refresh token for user_id=%s has expired",user_id)
                     raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has expired",
                         public_message="Your session has expired please login again")
             if user_session.is_revoked == True:
-                logging.warning("Duplicate logout request for an already revoked account by user_id=%s",user_id)
-                raise UnauthorizedError(internal_message="Request dected to revoke the account which has already been revoked",
-                    public_message="Your account has already been logged out. Please login again")
+                raise UnauthorizedError(
+                    internal_message=f"Duplicate logout request for an already revoked account by user_id={user_id}",
+                    public_message="Your account has already been logged out. Please login again",
+                )
             else :
                 user_session.is_revoked = True
                 return {"detail":f"Logout request sucessful {user_id}"}
@@ -215,11 +222,13 @@ async def logout_service(session:AsyncSession,refresh_token:str):
     except SQLAlchemyError as exc:
        raise translate_database_error(exc=exc)
     except Exception as exc:
-        logger.exception("Unexpected error occured in refresh token service")
         raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
 
 async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPassword):
     try:
+            allowed = redis_check_user_rate_limit(key=f"password:change_password:{user_id}",limit=settings.log_in_attempts,window=settings.log_in_block_window_sec)
+            if not allowed:
+                raise UnauthorizedError(public_message=f"Password attempts limit reached. Please try again after {round(settings.log_in_block_window_sec/60)} minutes")
             async with session.begin():
                 result =  await reset_password(session=session,user_id=user_id)
                 if result is None:
@@ -236,7 +245,6 @@ async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPa
     except SQLAlchemyError as exc:
        raise translate_database_error(exc=exc)
     except Exception as exc:
-        logger.exception("Unexpected error occured in refresh token service")
         raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
 
 
