@@ -1,7 +1,10 @@
-from pydantic import BaseModel , Field 
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
-from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
 class Create_Ingestion_Jobs(BaseModel):
     user_id: UUID = Field(description="The unique identifier of the user who owns this Job")
     document_id : UUID = Field(description="The unique identifier of the document for this Job")

@@ -1,11 +1,10 @@
-import pytest
-from app.api.dependencies.upload_file_validation import validate_file
 import io
 
+import pytest
+from fastapi import FastAPI, UploadFile
 from fastapi.testclient import TestClient
-from fastapi import UploadFile 
-from fastapi import FastAPI
 
+from app.api.dependencies.upload_file_validation import validate_file
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
 

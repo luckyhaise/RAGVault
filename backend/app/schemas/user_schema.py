@@ -1,9 +1,18 @@
 
-from pydantic import BaseModel, Field ,  EmailStr , model_validator , ConfigDict ,  AfterValidator
-from uuid import UUID
-from typing import  Annotated , Self
-from app.core.config import settings
 import re
+from typing import Annotated, Self
+from uuid import UUID
+
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    model_validator,
+)
+
+from app.core.config import settings
 
 USERNAME_PATTERN = r"^[a-zA-Z0-9_.-]+$"
 PASSWORD_PATTERN = re.compile(settings.regex)
@@ -15,22 +24,22 @@ def validate_new_password(password: str) -> str:
     if not PASSWORD_PATTERN.fullmatch(password):
         raise ValueError(
             "Password contains invalid characters. "
-            "Only alphanumeric characters and @#_!$%*.- are allowed"
+            "Password can only alphanumeric characters and @ # _ ! $ % * . -"
         )
 
     if not any(character.isupper() for character in password):
         raise ValueError(
-            "At least one character must be uppercase"
+            "Password must have atleast one uppercase character"
         )
 
     if not any(character.islower() for character in password):
         raise ValueError(
-            "At least one character must be lowercase"
+            "Password must have atleast one lowercase character"
         )
 
     if not any(character.isdigit() for character in password):
         raise ValueError(
-            "At least one character must be a digit"
+            "Password must have atleast one digit"
         )
 
     if not any(
@@ -38,7 +47,7 @@ def validate_new_password(password: str) -> str:
         for character in password
     ):
         raise ValueError(
-            "At least one special character is required"
+            "Password must have atleast one special character"
         )
 
     return password
@@ -166,4 +175,4 @@ class RefreshTokenResponse(BaseModel):
         min_length=1,
         description="JWT access token"
     )
-    refresh_token:str = Field(...,min_length=1,description="JWT refresh token")
+    refresh_token:str|None = Field(...,min_length=1,description="JWT refresh token")

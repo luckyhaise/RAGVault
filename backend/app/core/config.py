@@ -1,8 +1,8 @@
 
-from pydantic_settings import BaseSettings ,SettingsConfigDict
-from pydantic import PostgresDsn
 from os import getenv
 
+from pydantic import PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = getenv("ENV_FILE",".env")
 

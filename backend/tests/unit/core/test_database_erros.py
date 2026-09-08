@@ -1,17 +1,18 @@
 import pytest
-from unittest.mock import AsyncMock
-import asyncio
-from app.core.exceptions.database_errors import (
-    get_constraint_name, run_database_operation,translate_database_error, DataBaseError
-)
 from sqlalchemy.exc import (
-    SQLAlchemyError,
+    DatabaseError,
+    DataError,
     IntegrityError,
     OperationalError,
-    DataError,
     ProgrammingError,
-    DatabaseError
+    SQLAlchemyError,
 )
+
+from app.core.exceptions.database_errors import (
+    get_constraint_name,
+    translate_database_error,
+)
+
 
 def make_integrity_error(orig):
     return IntegrityError(
@@ -30,9 +31,6 @@ def make_database_exception(
     class FakeDiag:
         def __init__(self, constraint_name):
             self.constraint_name = constraint_name
-    # class FakeOrig(Exception):
-    #     def __init__(self, constraint_name):
-    #         self.daig = FakeDiag(constraint_name)
 
     return exception_type(
         statement="INSERT INTO users (email) VALUES (:email)",
@@ -72,16 +70,17 @@ def make_database_exception(
          "SQL_ALCHEMY_ERROR",
          500
          )
-        
+
     ],
 )
 def test_database_error_is_translated(exc_type, public_message, error_code, status_code):
     error = make_database_exception(exc_type)
     translated = translate_database_error(error)
 
-    assert getattr(translated, "public_message") == public_message
-    assert getattr(translated, "error_code") == error_code
-    assert getattr(translated, "status_code") == status_code
+    assert translated.public_message == public_message
+    assert translated.error_code == error_code
+    assert translated.status_code == status_code
+    assert translated.internal_message == str(error)
 
 @pytest.mark.parametrize(
         ("constraint","message","code"),[
@@ -109,55 +108,15 @@ def test_database_error_is_translated(exc_type, public_message, error_code, stat
 def test_constraint_name_errors_handled(constraint,message,code):
     error = make_database_exception(IntegrityError,constraint)
     translated = translate_database_error(error)
-    assert getattr(translated,"public_message") == message
-    assert getattr(translated,"error_code") == code
-    assert getattr(translated,"status_code") == 409
-@pytest.mark.asyncio 
-async def test_run_database_operation_sucess():
-    session = AsyncMock()
-    async def operation():
-        return 42+23
-    result = await run_database_operation(operation=operation,session=session)
-    assert result == 42+23
+    assert translated.public_message == message
+    assert translated.error_code == code
+    assert translated.status_code == 409
 
-@pytest.mark.asyncio
-async def test_run_database_rollback_check():
-    session = AsyncMock()
-
-    async def operation():
-        raise make_database_exception(IntegrityError)
-    
-    with pytest.raises(DataBaseError):
-        await run_database_operation(session, operation)
-    
-    session.rollback.assert_awaited_once()
-@pytest.mark.asyncio
-async def test_run_database_operation_translates_error():
-    session = AsyncMock()
-    async def operation(): 
-        raise make_database_exception(IntegrityError)
-    with pytest.raises(DataBaseError) as excinfo:
-      await run_database_operation(session=session,operation=operation)
-    assert excinfo.value.status_code == 409
-    assert excinfo.value.error_code == "DATABASE_INTEGRITY_ERROR"
-
-@pytest.mark.asyncio
-async def test_run_database_error_exception_chaining():
-    session = AsyncMock()
-    async def operation(): 
-        raise make_database_exception(IntegrityError)
-    with pytest.raises(DataBaseError) as excinfo:
-      await run_database_operation(session=session,operation=operation)
-    assert isinstance(excinfo.value.__cause__,IntegrityError) 
-
-
-import pytest
-from sqlalchemy.exc import IntegrityError
 
 @pytest.mark.parametrize(
     ("orig", "expected_constraint"),
     [
-    
+
         (
             type(
                 "FakeOrig",
@@ -167,7 +126,7 @@ from sqlalchemy.exc import IntegrityError
             "uq_email",
         ),
 
-       
+
         (
             type(
                 "FakeOrig",
@@ -183,7 +142,7 @@ from sqlalchemy.exc import IntegrityError
             "uq_user_name",
         ),
 
-       
+
         (
             type(
                 "FakeOrig",
@@ -199,7 +158,7 @@ from sqlalchemy.exc import IntegrityError
             "uq_phone",
         ),
 
-    
+
         (
             object(),
             None,
@@ -210,3 +169,12 @@ def test_get_constraint_name(orig, expected_constraint):
     error = make_integrity_error(orig)
 
     assert get_constraint_name(error) == expected_constraint
+
+def test_translate_database_error_uses_orig_constraint_name():
+    orig = type("FakeOrig", (), {"constraint_name": "uq_email"})()
+    error = make_integrity_error(orig)
+    translated = translate_database_error(error)
+
+    assert translated.public_message == "An account with this email already exists."
+    assert translated.error_code == "EMAIL_ALREADY_EXISTS"
+    assert translated.status_code == 409

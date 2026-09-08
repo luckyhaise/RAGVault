@@ -1,5 +1,6 @@
 from .exceptions import AppError
 
+
 class EmailDeliveryError(AppError):
     def __init__(
         self,   

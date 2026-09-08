@@ -1,12 +1,16 @@
-from app.schemas.documents_schema import CreateDocumentsCommand , Create_Documents_Chunks , DeleteDocumentCommand , Retrieve_Document , Retrieve_Chunks 
-
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
-
+from app.schemas.documents_schema import (
+    Create_Documents_Chunks,
+    CreateDocumentsCommand,
+    DeleteDocumentCommand,
+    Retrieve_Chunks,
+    Retrieve_Document,
+)
 
 
 def test_create_document_command_accepts_valid_data():

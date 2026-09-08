@@ -5,7 +5,6 @@ from httpx import AsyncClient
 
 from app.core.security import decode_access_token
 
-
 CREATE_URL = "/api/v1/user/create"
 LOGIN_URL = "/api/v1/user/login"
 

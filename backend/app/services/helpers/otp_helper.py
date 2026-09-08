@@ -1,26 +1,29 @@
-from argon2.exceptions import VerificationError
-from app.infrastructure.redis import rate_limit
-from app.infrastructure.redis.rate_limit import redis_check_user_rate_limit , redis_verification_attempt_limit
-from app.repositories.otp_repository import save_otp , get_saved_otp , delete_otp
-from app.core.security import hash_password , match_password
-from app.core.config import settings
 import secrets
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.documents_schema import Retrieve_Document
-from app.services.email_service import send_otp_email
-from app.workers.celery_app import celery_app
-from datetime import datetime,timedelta , UTC
-from sqlalchemy import select
+from datetime import UTC, datetime, timedelta
 from typing import Literal
-from app.core.exceptions.exceptions import AppError
-from app.core.exceptions.database_errors import translate_database_error , DataBaseError , SQLAlchemyError
-from app.core.exceptions.email_exceptions import EmailDeliveryError
 from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.exceptions.database_errors import (
+    SQLAlchemyError,
+    translate_database_error,
+)
+from app.core.exceptions.email_exceptions import EmailDeliveryError
+from app.core.exceptions.exceptions import AppError
+from app.core.security import hash_password, match_password
+from app.infrastructure.redis.rate_limit import (
+    redis_check_user_rate_limit,
+    redis_verification_attempt_limit,
+)
+from app.repositories.otp_repository import delete_otp, get_saved_otp, save_otp
+from app.services.email_service import send_otp_email
 
 
 async def otp_request_hanlder_for_user_service(
     session: AsyncSession,  email: str,purpose:Literal["login","create_account"] = "login",
-)-> tuple[UUID|None,UUID]:
+)-> tuple[UUID|None,str]:
    
     try:
         expire_at = datetime.now(UTC) + timedelta(
@@ -46,7 +49,7 @@ async def otp_request_hanlder_for_user_service(
         
         result = send_otp_email.delay(recipient_email=email,otp=otp)# pyright: ignore[reportFunctionMemberAccess]
        
-        task_id:UUID = result.id
+        task_id:str = result.id
         return saved_otp.id , task_id 
 
     except (AppError, EmailDeliveryError):

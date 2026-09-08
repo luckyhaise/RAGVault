@@ -1,24 +1,42 @@
-from datetime import UTC, datetime , timedelta
-from multiprocessing.context import AuthenticationError
-from tabnanny import check
-
-from celery.app.defaults import timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-from app.infrastructure.redis.rate_limit import redis_check_user_rate_limit
-from sqlalchemy.exc import SQLAlchemyError
-from app.core.config import settings
-from app.models.models import Users
-from app.schemas.user_schema import ResetPassword, UserCreate, UserLogin , ForgotPasswordRequest, ForgotPasswordChange , UserCreateRequest
-from app.core.exceptions.database_errors import run_database_operation, translate_database_error
-from app.core.security import hash_password, create_token , match_password , decode_token
-from app.repositories.users_repository import reset_password, save_user , find_user_by_user_name , find_user_by_email , create_session , find_user_session_by_user_id_for_update
-from app.core.exceptions.exceptions import  AppError, UnauthorizedError
-from app.services.helpers.otp_helper import otp_request_hanlder_for_user_service,verify_otp, EmailDeliveryError
-from app.core.exceptions.exceptions import ValidationAppError
 
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.exceptions.database_errors import translate_database_error
+from app.core.exceptions.exceptions import (
+    AppError,
+    UnauthorizedError,
+    ValidationAppError,
+)
+from app.core.security import create_token, decode_token, hash_password, match_password
+from app.infrastructure.redis.rate_limit import redis_check_user_rate_limit
+from app.models.models import Users
+from app.repositories.users_repository import (
+    create_session,
+    find_user_by_email,
+    find_user_by_user_name,
+    find_user_session_by_user_id_for_update,
+    reset_password,
+    save_user,
+)
+from app.schemas.user_schema import (
+    ForgotPasswordChange,
+    ForgotPasswordRequest,
+    ResetPassword,
+    UserCreate,
+    UserCreateRequest,
+    UserLogin,
+)
+from app.services.helpers.otp_helper import (
+    EmailDeliveryError,
+    otp_request_hanlder_for_user_service,
+    verify_otp,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -55,48 +73,46 @@ async def verify_account_service(session:AsyncSession,user_create:UserCreateRequ
 
 async def forgot_login_password_service(session:AsyncSession,user:ForgotPasswordChange,otp_id:UUID):
     allowed = await verify_otp(otp=user.otp,otp_id=otp_id,purpose="login",session=session,email=str(user.email))
-    async def operation():
-        user_detail = await find_user_account_from_email_or_user_name(email=user.email,user_name=user.user_name, session=session)
-        user_detail.password = hash_password(user.new_password)
-        await session.commit()
-        return {"message": "Password changed successfully."}
-    if allowed is True:
-        return await run_database_operation(operation=operation,session=session)
-    else:
+    if allowed is not True:
         raise EmailDeliveryError(
                            public_message="Incorrect OTP. Please try again",
                            error_code="UNAUTHORIZED",
                            status_code=401
                        )
+    try:
+        user_detail = await find_user_account_from_email_or_user_name(email=user.email,user_name=user.user_name, session=session)
+        user_detail.password = hash_password(user.new_password)
+        await session.commit()
+        return {"message": "Password changed successfully."}
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise translate_database_error(exc=exc) from exc
 
 
 
 async def create_account_service(session:AsyncSession,user:UserCreate,otp:str,otp_id:UUID):
   allowed =await verify_otp(otp=otp,otp_id=otp_id,purpose="create_account",session=session,email=user.email)
-  async def operation():
+  if allowed is not True:
+      raise EmailDeliveryError(
+                         public_message="Incorrect OTP. Please try again",
+                         error_code="UNAUTHORIZED",
+                         status_code=401
+                     )
+  try:
         new_user =  await save_user(session=session,
                             user_name = user.user_name,
                             phone_number= user.phone,
                             name= user.name,
                             email_id=user.email,
                             hashed_password=hash_password(user.password))
-
-
-
         await session.commit()
         logger.info("Account created | user_id=%s | user_name=%s", new_user.id, new_user.user_name)
         return new_user
-  if allowed is True :
-      return await run_database_operation(session=session,operation=operation)
-  else :
-
-      raise EmailDeliveryError(
-                         public_message="Incorrect OTP. Please try again",
-                         error_code="UNAUTHORIZED",
-                         status_code=401
-                     )
+  except SQLAlchemyError as exc:
+        await session.rollback()
+        raise translate_database_error(exc=exc) from exc
 async def login_service(session:AsyncSession,user:UserLogin):
-  async def operation():
+  try:
     if user.user_name is not None:
      user_detail = await find_user_by_user_name(session=session,user_name=user.user_name)
     else:
@@ -109,6 +125,7 @@ async def login_service(session:AsyncSession,user:UserLogin):
     user_id = user_detail.id
     token = create_token(subject=str(user_id),create_refresh_token=True)
     logger.info("Login successful | user_id=%s", user_id)
+    
 
     user_session =  await create_session(session=session,
         expires_at=token.refresh_expires_at,
@@ -120,8 +137,9 @@ async def login_service(session:AsyncSession,user:UserLogin):
     logger.info("Session Created | session_id=%s", user_session.id)
     return {"access_token":token.access_token,
            "refresh_token":token.refresh_token}
-
-  return await run_database_operation(session=session,operation=operation)
+  except SQLAlchemyError as exc:
+    await session.rollback()
+    raise translate_database_error(exc=exc) from exc
 
 @dataclass
 class Token:
@@ -137,15 +155,16 @@ async def refresh_token_service(session:AsyncSession,refresh_token:str):
         refresh_renew_threshold = timedelta(days=settings.refresh_token_expire_days *  .25)
         user_id = UUID(decoded["sub"])
         async with session.begin():
-                user_session = await find_user_session_by_user_id_for_update(session=session,user_id=user_id)
+                user_session = await find_user_session_by_user_id_for_update(session=session,user_id=user_id,refresh_token_jti=UUID(decoded["jti"]))
 
 
                 if user_session is None:
                     raise UnauthorizedError(
-                        internal_message=f"No session is found from the | user_id={user_id} | refresh_token_jti={decoded['jti']}",
+                        internal_message=f"No session is found from the user_id={user_id} | refresh_token_jti={decoded['jti']}",
                         public_message="Your session is invalid please login again",
                     )
-                if decoded["jti"] != user_session.refresh_token_jti:
+                if  str(user_session.refresh_token_jti) != str(decoded["jti"])  :
+                        print(f"{decoded["jti"]} and {user_session.refresh_token_jti}")
                         raise UnauthorizedError(
                             internal_message=(
                                 f"The refresh_token_jti does not match session_jti | "
@@ -177,12 +196,11 @@ async def refresh_token_service(session:AsyncSession,refresh_token:str):
     except (UnauthorizedError,AppError):
         raise
     except SQLAlchemyError as exc:
-       raise translate_database_error(exc=exc)
+       raise translate_database_error(exc=exc) from exc
     except Exception as exc:
-        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again") from exc
 
 
-    # expires_at = decoded.get("exp")
 
 async def logout_service(session:AsyncSession,refresh_token:str):
     try:
@@ -190,7 +208,7 @@ async def logout_service(session:AsyncSession,refresh_token:str):
         decoded= decode_token(token=refresh_token,expected_type="refresh")
         user_id = decoded["sub"]
         async with session.begin():
-            user_session =await find_user_session_by_user_id_for_update(session=session,user_id=user_id)
+            user_session =await find_user_session_by_user_id_for_update(session=session,user_id=user_id,refresh_token_jti=UUID(decoded["jti"]))
             if user_session is None :
                 raise UnauthorizedError(
                     internal_message=f"No user session exists for the refresh token with user id={user_id}",
@@ -209,7 +227,7 @@ async def logout_service(session:AsyncSession,refresh_token:str):
             if user_session.expires_at < now:
                     raise UnauthorizedError(internal_message=f"Refresh token for user_id: {user_id} has expired",
                         public_message="Your session has expired please login again")
-            if user_session.is_revoked == True:
+            if user_session.is_revoked:
                 raise UnauthorizedError(
                     internal_message=f"Duplicate logout request for an already revoked account by user_id={user_id}",
                     public_message="Your account has already been logged out. Please login again",
@@ -220,9 +238,9 @@ async def logout_service(session:AsyncSession,refresh_token:str):
     except (UnauthorizedError,AppError):
         raise
     except SQLAlchemyError as exc:
-       raise translate_database_error(exc=exc)
+       raise translate_database_error(exc=exc) from exc
     except Exception as exc:
-        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again") from exc
 
 async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPassword):
     try:
@@ -238,13 +256,13 @@ async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPa
                 elif result.password == user.old_password:
                     result.password =  user.new_password
                 
-                id = result.id
+              
             return {"detail":f"User password has been changed {result.id}"}
     except (UnauthorizedError,AppError):
         raise
     except SQLAlchemyError as exc:
-       raise translate_database_error(exc=exc)
+       raise translate_database_error(exc=exc) from exc
     except Exception as exc:
-        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again")
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again") from exc
 
 

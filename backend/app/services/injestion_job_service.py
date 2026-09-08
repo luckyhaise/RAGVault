@@ -1,28 +1,37 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-from app.repositories.ingestion_job_repository import get_by_idempotency_key , create , get_by_job_id
-from datetime import datetime, UTC
-from app.core.exceptions.exceptions import NotFoundError
+from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
-from app.core.exceptions.database_errors import run_database_operation
+
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions.database_errors import translate_database_error
+from app.core.exceptions.exceptions import NotFoundError
+from app.repositories.ingestion_job_repository import (
+    create,
+    get_by_idempotency_key,
+    get_by_job_id,
+)
 
 logger = logging.getLogger(__name__)
 
 async def start_ingestion_job(user_id:UUID,session:AsyncSession,idempotency_key:UUID,status:str = "pending",document_id:UUID|None=None):
-     async def operation(): 
-        
+    try:
         existing_job = await get_by_idempotency_key(session=session,user_id=user_id,idempotency_key= idempotency_key)
-    
+
         if existing_job :
             logger.info("Ingestion job already exists | user_id=%s | idempotency_key=%s", user_id, idempotency_key)
             return existing_job
         job = await create(session=session,user_id=user_id,document_id=document_id,idempotency_key=idempotency_key,status=status)
         logger.info("Ingestion job started | job_id=%s | user_id=%s | idempotency_key=%s", job.id, user_id, idempotency_key)
         return job
-     return await run_database_operation(session=session,operation=operation)
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise translate_database_error(exc=exc) from exc
     
-async def  ingestion_job_success(job_id:UUID,session:AsyncSession,status="completed"):
-    async def operation():
+async def  ingestion_job_success(job_id:UUID,session:AsyncSession,status:Literal['pending', 'completed', 'failed', 'processing'] ="completed"):
+    try:
         job = await get_by_job_id(job_id=job_id,session=session)
         if not job:
             raise NotFoundError(f"No Job found with Job Id{job_id}",public_message="Job dosen't exist")
@@ -36,11 +45,12 @@ async def  ingestion_job_success(job_id:UUID,session:AsyncSession,status="comple
         )
 
         return job
-    
-    return await run_database_operation(session=session,operation=operation)
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise translate_database_error(exc=exc) from exc
 
-async def ingestion_job_failed(job_id:UUID,error_message:str,session:AsyncSession,status="failed"):
-    async def operation():
+async def ingestion_job_failed(job_id:UUID,error_message:str,session:AsyncSession,status:Literal['pending', 'completed', 'failed', 'processing']="failed"):
+    try:
         job = await get_by_job_id(job_id=job_id,session=session)
         if not job:
             raise NotFoundError(f"No Job found with Job Id{job_id}",public_message="Job dosen't exist")
@@ -56,4 +66,6 @@ async def ingestion_job_failed(job_id:UUID,error_message:str,session:AsyncSessio
         )
 
         return job
-    return await run_database_operation(session=session,operation=operation)
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise translate_database_error(exc=exc) from exc

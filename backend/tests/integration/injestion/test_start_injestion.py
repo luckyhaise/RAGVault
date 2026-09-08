@@ -1,9 +1,9 @@
-import pytest
 from uuid import uuid4
 
-from app.services.injestion_job_service import start_ingestion_job
+import pytest
 from account_helper import ensure_user
 
+from app.services.injestion_job_service import start_ingestion_job
 
 
 @pytest.mark.asyncio

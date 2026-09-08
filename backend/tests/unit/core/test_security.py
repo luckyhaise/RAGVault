@@ -1,9 +1,19 @@
-import pytest
-from app.core.security import match_password,hash_password, create_access_token , decode_access_token
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
-from datetime import datetime , timedelta , UTC
+
+import pytest
 from freezegun import freeze_time
-from hypothesis import given , strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
+
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    match_password,
+)
+
+
 def test_password_hashing_and_matching():
     password = "praindtkfhsodnftasdf838932"
     hashed_password = hash_password(password=password)

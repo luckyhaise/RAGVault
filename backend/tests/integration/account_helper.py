@@ -1,6 +1,5 @@
-from app.repositories.users_repository import  find_user_by_user_name
-from app.services.user_services import create_account_service , User_Create
-
+from app.repositories.users_repository import find_user_by_user_name
+from app.services.user_services import User_Create, create_account_service
 
 TEST_ACCOUNTS = [
     {

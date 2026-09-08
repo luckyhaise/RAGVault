@@ -1,15 +1,16 @@
-from app.services.document_service import save_document_service , CreateDocumentsCommand 
-from app.repositories.ingestion_job_repository import get_by_idempotency_key
-import pytest
-import string 
 import random
-from app.models.models import Documents , Ingestion_Jobs
-from app.core.exceptions.exceptions import AppError, DataBaseError
-from account_helper import ensure_user
-from uuid import uuid4
-from app.utils.chunk_data import chuckey_chunkey
+import string
 from unittest.mock import patch
+from uuid import uuid4
 
+import pytest
+from account_helper import ensure_user
+
+from app.core.exceptions.exceptions import AppError, DataBaseError
+from app.models.models import Documents
+from app.repositories.ingestion_job_repository import get_by_idempotency_key
+from app.services.document_service import CreateDocumentsCommand, save_document_service
+from app.utils.chunk_data import chuckey_chunkey
 
 document = "".join(random.choices(string.ascii_letters + string.digits,k=1000))
 
@@ -71,7 +72,7 @@ async def test_start_ingestion_job_fails(mock_start_ingestion_job,db_session):
     user = await ensure_user(db_session=db_session)
     
     error = DataBaseError(public_message="Something went wrong. Please try again later",
-                         internal_message= str("Some internal error"),
+                         internal_message= "Some internal error",
                          error_code="SQL_ALCHEMY_ERROR",
                          status_code=500)
     mock_start_ingestion_job.side_effect = error

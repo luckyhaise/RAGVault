@@ -1,7 +1,6 @@
 from app.infrastructure.redis.client import r
 
 
-
 async def redis_check_user_rate_limit(
    
     key:str,

@@ -1,6 +1,5 @@
-import pytest
-import sys
 from app.utils.chunk_data import chuckey_chunkey
+
 
 def test_chuncky_chuncky():
     document = "this is a test document "

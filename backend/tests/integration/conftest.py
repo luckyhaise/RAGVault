@@ -1,12 +1,12 @@
-from app.core.config import settings 
-from sqlalchemy.ext.asyncio import create_async_engine , async_sessionmaker
-from app.repositories.users_repository import  find_user_by_user_name
-from app.models.models import Base
-from httpx import AsyncClient
-from app.services.user_services import create_account_service , User_Create
-from app.db.database import get_db
 import pytest_asyncio
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from app.core.config import settings
+from app.db.database import get_db
 from app.main import app
+from app.models.models import Base
+
 async_engine = create_async_engine(url=str(settings.postgres_url))
 
 AsyncSessionMaker = async_sessionmaker(bind=async_engine,autoflush=False,expire_on_commit=False)

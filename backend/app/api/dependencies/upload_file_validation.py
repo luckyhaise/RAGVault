@@ -1,4 +1,4 @@
-from fastapi import UploadFile, File, HTTPException, status
+from fastapi import File, HTTPException, UploadFile, status
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
 

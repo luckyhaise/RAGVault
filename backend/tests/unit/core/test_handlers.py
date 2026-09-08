@@ -1,11 +1,12 @@
-from app.core.exceptions.handlers import (AppError,app_error_handler,validation_error_handler,http_exception_handler,unexpected_exception_handler,register_expection_handler)
 import pytest
-
-from fastapi.exceptions import RequestValidationError 
-from starlette.exceptions import HTTPException as StarLetteHttpException
-from pydantic import BaseModel
-from fastapi import FastAPI ,  HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarLetteHttpException
+
+from app.core.exceptions.handlers import AppError, register_expection_handler
+
 app = FastAPI()
 app = TestClient(app=app)
 

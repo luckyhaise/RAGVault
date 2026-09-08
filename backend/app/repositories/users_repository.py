@@ -1,10 +1,12 @@
 # from app.schemas.user_schema import User_Create,User_Login
 from datetime import datetime
-
-from app.models.models import Users , UserSession
-from sqlalchemy.ext.asyncio import AsyncSession 
-from sqlalchemy import select
 from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.models import Users, UserSession
+
 
 async def save_user(phone_number:str,name:str,email_id:str,hashed_password:str,user_name:str,session:AsyncSession):
     user = Users(user_name = user_name,phone = phone_number , name = name,email = email_id , password = hashed_password)
@@ -34,8 +36,8 @@ async def create_session(session:AsyncSession,user_id:UUID,is_revoked:bool,refre
     return stmt 
 
     
-async def find_user_session_by_user_id_for_update(session:AsyncSession,user_id:UUID):
-    stmt = select(UserSession).where(UserSession.user_id == user_id).with_for_update()
+async def find_user_session_by_user_id_for_update(session:AsyncSession,user_id:UUID,refresh_token_jti:UUID):
+    stmt = select(UserSession).where(UserSession.user_id == user_id,UserSession.refresh_token_jti==refresh_token_jti).with_for_update()
     user_session = (await session.execute(stmt)).scalar_one_or_none()
     
     return user_session

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import EmailVerificationOtp
 
+
 async def save_otp(session:AsyncSession,otp_hash:str,expires_at:datetime,email:str):
     otp = EmailVerificationOtp(expires_at = expires_at,otp_hash = otp_hash,email = email) 
     session.add(otp)

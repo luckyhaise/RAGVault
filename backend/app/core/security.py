@@ -1,14 +1,14 @@
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID, uuid4
+
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError 
-from jose import jwt  , JWTError
-from datetime import  datetime,timedelta , UTC
+from argon2.exceptions import VerifyMismatchError
+from jose import JWTError, jwt
 
 from app.core.config import settings
-from typing import Any
 from app.core.exceptions.exceptions import UnauthorizedError
-from uuid import uuid4 , UUID 
-from dataclasses import dataclass
-
 
 hasher = PasswordHasher()
 
@@ -83,9 +83,9 @@ def decode_token(token:str,expected_type:str):
         
         return payload
         
-    except JWTError:
+    except JWTError as exc:
         raise UnauthorizedError(
             public_message = "Your login session is invalid or expired. Please sign in.",
             internal_message="Could not validate credentials or token has expired",
             
-        )
+        ) from exc

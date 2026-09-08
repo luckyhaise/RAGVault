@@ -7,7 +7,6 @@ from httpx import AsyncClient
 
 from app.core.exceptions.exceptions import AppError
 
-
 CREATE_URL = "/api/v1/user/create"
 LOGIN_URL = "/api/v1/user/login"
 UPLOAD_URL = "/api/v1/document/document/upload"

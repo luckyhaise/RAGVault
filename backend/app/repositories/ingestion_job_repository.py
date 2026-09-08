@@ -1,7 +1,11 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models.models import Ingestion_Jobs
 from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.models import Ingestion_Jobs
+
+
 async def get_by_idempotency_key(session:AsyncSession,user_id:UUID,idempotency_key:UUID):
     stmt = select(Ingestion_Jobs).where(Ingestion_Jobs.user_id == user_id,Ingestion_Jobs.idempotency_key == idempotency_key)
     result =  await session.execute(stmt)

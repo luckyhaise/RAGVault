@@ -1,13 +1,19 @@
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.documents_schema import CreateDocumentsCommand, DeleteDocumentCommand
-from app.core.exceptions.database_errors import translate_database_error , run_database_operation
+
+from app.core.exceptions.database_errors import translate_database_error
 from app.core.exceptions.exceptions import AppError
-from sqlalchemy.exc import  SQLAlchemyError
-from app.repositories.documents_repository import create_document , delete_document
-from app.services.injestion_job_service import start_ingestion_job , ingestion_job_failed,ingestion_job_success
-from app.utils.chunk_data import chuckey_chunkey
 from app.repositories.chunks_repository import save_chunks
-  
+from app.repositories.documents_repository import create_document, delete_document
+from app.schemas.documents_schema import CreateDocumentsCommand, DeleteDocumentCommand
+from app.services.injestion_job_service import (
+    ingestion_job_failed,
+    ingestion_job_success,
+    start_ingestion_job,
+)
+from app.utils.chunk_data import chuckey_chunkey
+
+
 async def save_document_service(session:AsyncSession,command:CreateDocumentsCommand) :
 
     job = await start_ingestion_job(user_id=command.user_id,
@@ -18,7 +24,7 @@ async def save_document_service(session:AsyncSession,command:CreateDocumentsComm
     await session.refresh(job)
     job_id = job.id
     
-    
+  
     if job.document_id is not None :
        return {
             "id": job_id,
@@ -42,7 +48,7 @@ async def save_document_service(session:AsyncSession,command:CreateDocumentsComm
         
         # chunking and rest of logic here
         chunks = chuckey_chunkey(document.original_text)
-        await save_chunks(document_id=document.id,chunks=chunks,session=session)
+        _ = await save_chunks(document_id=document.id,chunks=chunks,session=session)
      
         
         
@@ -50,7 +56,7 @@ async def save_document_service(session:AsyncSession,command:CreateDocumentsComm
 
 
 
-        await ingestion_job_success(job_id=job_id , session= session)
+        _ =await ingestion_job_success(job_id=job_id , session= session)
         await session.commit() 
         await session.refresh(job)
         return {
@@ -67,33 +73,38 @@ async def save_document_service(session:AsyncSession,command:CreateDocumentsComm
        await  session.rollback()
        exc_error_code = "UNEXPECTED_DOCUMENT_SERVICE_ERROR"
        exc_public_message = "Document ingestion failed"
+       internal_msg = str(exc)
 
        if isinstance(exc,SQLAlchemyError):
             error =  translate_database_error(exc=exc)
-            exc = str(error.internal_message)
+            internal_msg = str(error.internal_message)
             exc_error_code = str(error.error_code)
             exc_public_message = str(error.public_message)
        elif isinstance(exc,AppError):
            exc_error_code = exc.error_code
            exc_public_message = exc.public_message
-           exc = exc.internal_message
+           internal_msg = exc.internal_message
            
-       else:
-           
-           exc = str(exc)
+      
         
       
-       job = await ingestion_job_failed(job_id=job_id,error_message=exc,session=session)
+       job = await ingestion_job_failed(job_id=job_id,error_message=exc_public_message,session=session)
        await session.commit()
        await session.refresh(job)
-       raise AppError(public_message=exc_public_message ,internal_message=exc ,status_code=500, error_code=exc_error_code)
+       raise AppError(public_message=exc_public_message ,internal_message=internal_msg ,status_code=500, error_code=exc_error_code) from exc
 
 async def delete_document_service(session:AsyncSession,command:DeleteDocumentCommand):
-    async def operation():
-        result = await delete_document(session=session,
+    try:
+        title = await delete_document(session=session,
                             user_id=command.user_id,
                             document_id=command.id)
-        return result
-     
-    return await run_database_operation(session=session,operation=operation)
-   
+        await session.commit()
+        return {
+            "detail": f"{title} has been deleted"
+           
+       }
+        
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        raise translate_database_error(exc=exc) from exc 
+    

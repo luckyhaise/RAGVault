@@ -1,16 +1,16 @@
 import pytest
 
+from app.core.exceptions.email_exceptions import EmailDeliveryError
 from app.core.exceptions.exceptions import (
     AppError,
     ConflictError,
+    DataBaseError,
     ExternalServiceError,
     ForbiddenError,
     NotFoundError,
     UnauthorizedError,
-    DataBaseError,
     ValidationAppError,
 )
-from app.core.exceptions.email_exceptions import EmailDeliveryError
 
 
 def test_app_error_stores_all_values() -> None:

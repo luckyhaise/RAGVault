@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragvault-backend"
+version = "0.1.0"
+description = "RAGVault backend"
+requires-python = ">=3.14"
+dependencies = [
+    "requests>=2.34",
+    "alembic>=1.14",
+    "argon2-cffi>=23.1",
+    "asyncpg>=0.30",
+    "celery>=5.4",
+    "email-validator>=2.2",
+    "fastapi[standard]>=0.115",
+    "greenlet>=3.1",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "python-jose[cryptography]>=3.3",
+    "python-multipart>=0.0.18",
+    "redis>=5.2",
+    "sqlalchemy[asyncio]>=2.0",
+    "sqlalchemy-utils>=0.41",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.optional-dependencies]
+dev = [
+    "freezegun>=1.5",
+    "httpx>=0.28",
+    "hypothesis>=6.120",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["app", "app.*"]
+[tool.basedpyright]
+typeCheckingMode = "standard"
+
+# This forces the engine to bypass looking for non-existent .pyi stubs
+reportMissingTypeStubs = "none"
+
+# This prevents local workspace packages from triggering unresolvable import lines
+reportMissingImports = "warning"
+reportMissingModuleSource = "none"
+
+# Explicitly maps your current directory as an import search path
+extraPaths = ["."]
+[tool.pytest.ini_options]
+python_functions = ["test_*", "check_*"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = ["app", "tests", "alembic"]
+exclude = [
+    ".venv",
+    "build",
+    ".pytest_cache",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+    "E4",   # import-related style
+    "E7",   # statement-related style
+    "E9",   # runtime/syntax issues
+    "F",    # pyflakes: unused imports, undefined names, etc.
+    "I",    # isort: import sorting
+    "B",    # flake8-bugbear: common bugs
+    "UP",   # pyupgrade: modern Python syntax
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic migrations are auto-generated and often have long lines.
+"alembic/versions/*.py" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

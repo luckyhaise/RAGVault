@@ -1,11 +1,22 @@
-from uuid import uuid4, UUID as UUID_PY , uuid1
-from sqlalchemy import Boolean, String , UUID , VARCHAR , Text,Integer,literal ,UniqueConstraint 
-from datetime import datetime , UTC
-from sqlalchemy import DateTime , ForeignKey , Enum 
-from sqlalchemy.sql import Nullable
-from sqlalchemy_utils import EmailType 
+from datetime import UTC, datetime
 from typing import Literal
-from sqlalchemy.orm import DeclarativeBase , mapped_column, Mapped, relationship 
+from uuid import UUID as UUID_PY
+from uuid import uuid4
+
+from sqlalchemy import (
+    UUID,
+    VARCHAR,
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy_utils import EmailType
+
 
 class Base(DeclarativeBase):
     pass
@@ -20,7 +31,6 @@ class Users(Base):
     email : Mapped[str] = mapped_column(EmailType,nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default= lambda: datetime.now(UTC)) 
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),default=lambda: datetime.now(UTC),onupdate=lambda:datetime.now(UTC))
-    deleted_at : Mapped[datetime|None] = mapped_column(DateTime(timezone=True),default=None,nullable=True)
     documents = relationship("Documents",back_populates="user",cascade="all, delete-orphan")
     llm_runs = relationship("Llm_Runs",back_populates="user",cascade="all, delete-orphan")
     ingestion_jobs = relationship("Ingestion_Jobs",back_populates="user",cascade="all, delete-orphan") 
@@ -39,7 +49,6 @@ class Documents(Base):
     original_text: Mapped[str] = mapped_column(Text,nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default= lambda:datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default= lambda: datetime.now(UTC),onupdate=lambda: datetime.now(UTC))
-    deleted_at : Mapped[datetime|None] = mapped_column(DateTime(timezone=True),default=None,nullable=True)
     user = relationship("Users",back_populates="documents")
     chunks = relationship("Documents_Chunks",order_by=lambda:Documents_Chunks.chunk_index.asc(),back_populates="document",cascade="all, delete-orphan")
     ingestion_jobs= relationship("Ingestion_Jobs",back_populates="document",cascade="all, delete-orphan")

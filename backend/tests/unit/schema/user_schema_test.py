@@ -1,9 +1,9 @@
-import pytest
-from app.schemas.user_schema import User_Login, User_Create, UserCreateResponse
-from pydantic_core import ValidationError
-from pydantic import ValidationError
-from uuid import UUID, uuid4
+from uuid import uuid4
 
+import pytest
+from pydantic import ValidationError
+
+from app.schemas.user_schema import User_Create, User_Login, UserCreateResponse
 
 VALID_PASSWORD = "Some_password1"
 

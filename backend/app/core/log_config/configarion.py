@@ -1,15 +1,16 @@
+import json
 import logging
 import logging.config
-import json
-from pathlib import Path
+
 # from uvicorn import loggings
 import sys
+from pathlib import Path
 
 file_path = Path(__file__).with_name("config.json")
 
 
 def load_config():
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         return json.load(f)
 
 

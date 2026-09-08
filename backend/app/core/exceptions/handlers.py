@@ -1,9 +1,10 @@
-from fastapi import FastAPI , Request  , status
 import logging
 
-from fastapi.exceptions import RequestValidationError 
-from starlette.exceptions import HTTPException as StarLetteHttpException
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarLetteHttpException
+
 from .exceptions import AppError
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,8 @@ async def app_error_handler(request:Request,exc:AppError)->JSONResponse:
                    exc.status_code,
                    exc.internal_message,
                    exc.error_code)
-    return JSONResponse(status_code=exc.status_code,content={"error":{
+    return JSONResponse(status_code=exc.status_code,content={
+        "error":{
         "code":exc.status_code,
         "error_code": exc.error_code,
         "message" : exc.public_message
@@ -33,17 +35,18 @@ async def validation_error_handler(request:Request,exc:RequestValidationError):
 
          }
       )
+      
      logger.warning("Validation Error: %s %s | code=%s | message=%s | error_code = %s",
                     request.method,
                     request.url.path,
                     "422",
-                     [error["message"] for error in errors],
+                      " ".join([error["message"] for error in errors]),
                      "validation_error")
      return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,content={
          "error": {
             "code" : "validation_error",
-            "message": "The submitted request data is invalid",
-            "details": errors
+            # "message": "The submitted request data is invalid",
+            "message":  ". ".join([error["message"] for error in errors])
          }
       })
 

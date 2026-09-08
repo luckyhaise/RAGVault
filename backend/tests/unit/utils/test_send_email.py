@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from app.core.config import settings
 from app.core.exceptions.email_exceptions import EmailDeliveryError
@@ -29,7 +30,7 @@ async def test_send_email_raises_email_delivery_error_on_failure(mock_send):
     mock_send.side_effect = Exception("resend unavailable")
 
     with pytest.raises(EmailDeliveryError) as excinfo:
-        await send_email(recipient_email=settings.verification_email, otp=111111,subject="Custom verification subject", html=f""" <h1> testing send email </h1>""")
+        await send_email(recipient_email=settings.verification_email, otp=111111,subject="Custom verification subject", html=""" <h1> testing send email </h1>""")
 
     assert excinfo.value.error_code == "EMAIL_DELIVERY_ERROR"
     assert excinfo.value.status_code == 503

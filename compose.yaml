@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+  
+    env_file:
+      - .env
+    volumes:
+        - ./backend/alembic/versions:/app/backend/alembic/versions
+    depends_on:
+      - postgres
+      - redis
+    develop:
+      watch:
+              - action: sync+restart
+                path: ./backend/app 
+                target: /app/backend/app
+              - action: rebuild
+                path: pyproject.toml 
+                   
+  postgres: 
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      -  postgres_data:/var/lib/postgresql/
+  redis:
+    image: redis:8
+  celery:
+    build: .
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+        - redis
+volumes:
+  postgres_data: {}

@@ -4,9 +4,9 @@ Shadows the parent `client` fixture with a working ASGI transport and
 `AsyncSessionMaker()` session (parent override is broken / outdated for httpx).
 """
 
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-import pytest_asyncio
 
 from app.core.config import settings
 from app.db.database import get_db

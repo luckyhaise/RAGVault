@@ -1,18 +1,19 @@
-from sqlalchemy.exc import (
-    SQLAlchemyError,
-    IntegrityError,
-    OperationalError,
-    DataError,
-    ProgrammingError,
-)
-import re
 import logging
-from typing  import TypeVar
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TypeVar
+
+from sqlalchemy.exc import (
+    DataError,
+    IntegrityError,
+    NoResultFound,
+    OperationalError,
+    ProgrammingError,
+    SQLAlchemyError,
+)
+
 from .exceptions import DataBaseError
 
 logger = logging.getLogger(__name__)
-
+T = TypeVar("T")
 INTEGRITY_ERROR_MAP = {
     "uq_email": {
         "message": "An account with this email already exists.",
@@ -55,12 +56,6 @@ def get_constraint_name(exc:IntegrityError) :
     return None
     
 
-
-
-
-
-T = TypeVar("T")
-
 def translate_database_error(exc:SQLAlchemyError) -> DataBaseError:
     if isinstance(exc,IntegrityError):
         constraint_voilated = get_constraint_name(exc=exc)
@@ -79,6 +74,13 @@ def translate_database_error(exc:SQLAlchemyError) -> DataBaseError:
             status_code=409,
             error_code="DATABASE_INTEGRITY_ERROR"
         
+        )
+    if isinstance(exc,NoResultFound):
+        return DataBaseError(
+            public_message= "The requested resource could not be found or you do not have permission to access it",
+            internal_message= str(exc),
+            status_code=404,
+            error_code="RESOURCE_NOT_FOUND"
         )
     if isinstance(exc,OperationalError):
         return DataBaseError(
@@ -121,6 +123,3 @@ async def  run_database_operation(session:AsyncSession,operation:callable[[],T])
     except SQLAlchemyError as exc:
         await session.rollback()
         raise translate_database_error(exc=exc) from exc
-    
-
-

@@ -1,14 +1,20 @@
-from sqlalchemy.exc import IntegrityError
-import pytest 
-from app.services.document_service import delete_document_service , save_document_service , CreateDocumentsCommand , DeleteDocumentCommand
-
-from app.models.models import Documents
-from account_helper import ensure_user
-import string
-from app.core.exceptions.exceptions import DataBaseError
 import random
-from uuid import uuid4
+import string
 from unittest.mock import patch
+from uuid import uuid4
+
+import pytest
+from account_helper import ensure_user
+from sqlalchemy.exc import IntegrityError
+
+from app.core.exceptions.exceptions import DataBaseError
+from app.models.models import Documents
+from app.services.document_service import (
+    CreateDocumentsCommand,
+    DeleteDocumentCommand,
+    delete_document_service,
+    save_document_service,
+)
 
 document = "".join(random.choices(string.ascii_letters + string.digits,k=1000))
 
