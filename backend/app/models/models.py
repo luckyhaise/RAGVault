@@ -27,7 +27,6 @@ class Users(Base):
     user_name : Mapped[str] = mapped_column(VARCHAR(200),nullable=False)
     name: Mapped[str] = mapped_column(VARCHAR(100),nullable=False)
     password : Mapped[str] = mapped_column(Text,nullable=False)
-    phone: Mapped[str] = mapped_column(VARCHAR(20),nullable=False)
     email : Mapped[str] = mapped_column(EmailType,nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default= lambda: datetime.now(UTC)) 
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),default=lambda: datetime.now(UTC),onupdate=lambda:datetime.now(UTC))
@@ -36,7 +35,6 @@ class Users(Base):
     ingestion_jobs = relationship("Ingestion_Jobs",back_populates="user",cascade="all, delete-orphan") 
     sessions = relationship("UserSession",back_populates="user")
     __table_args__ = (
-        UniqueConstraint("phone", name="uq_phone"),
         UniqueConstraint("email", name="uq_email"),
         UniqueConstraint("user_name", name="uq_user_name"),
     )

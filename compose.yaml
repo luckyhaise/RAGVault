@@ -20,7 +20,7 @@ services:
                 path: pyproject.toml 
                    
   postgres: 
-    image: postgres:18
+    image: ankane/pgvector:latest
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

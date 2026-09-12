@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateDocumentsCommand(BaseModel):
@@ -16,7 +17,7 @@ class CreateDocumentsChunks(BaseModel):
 
 class RetrieveAllUserDocuments(BaseModel):
     limit:int = Field(..., le=100,ge=1,description="Number of rows in a page")
-    page:int = Field(...,le=1,description="Page number")
+    page:int = Field(...,ge=1,description="Page number")
 
 class RetrieveDocument(BaseModel):
     id: UUID = Field(description="Unique identifier of the document")
@@ -27,3 +28,21 @@ class RetrieveDocument(BaseModel):
 class DeleteDocumentCommand(BaseModel):
     user_id: UUID
     id:UUID
+
+class DocumentSummary(BaseModel):
+    """A page item returned by the document list endpoint."""
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID = Field(description="Unique identifier of the document")
+    title: str = Field(description="Title of the document")
+    created_at: datetime = Field(description="Time when the document was created")
+    updated_at: datetime = Field(description="Time when the document was last updated")
+
+class DocumentListPagination(BaseModel):
+    total_items: int = Field(description="Total number of documents the user owns")
+    total_pages: int = Field(description="Total number of pages available")
+    has_next: bool = Field(description="Whether a next page exists")
+    has_previous: bool = Field(description="Whether a previous page exists")
+
+class RetrieveAllUserDocumentsResponse(BaseModel):
+    items: list[DocumentSummary] = Field(description="Documents for the requested page")
+    pagination: DocumentListPagination = Field(description="Pagination metadata")

@@ -2,57 +2,81 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
+from typing import Literal
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.models import Users
+from app.services.helpers.helper_services import find_user_account_from_email_or_user_name
 from app.core.config import settings
 from app.core.exceptions.database_errors import translate_database_error
 from app.core.exceptions.exceptions import (
     AppError,
+    
+    NotFoundError,
     UnauthorizedError,
     ValidationAppError,
+    ConflictError
 )
 from app.core.security import create_token, decode_token, hash_password, match_password
-from app.infrastructure.redis.rate_limit import redis_check_user_rate_limit
-from app.models.models import Users
+from app.infrastructure.redis.rate_limit import redis_check_user_rate_limit, redis_get_attempts_left
 from app.repositories.users_repository import (
     create_session,
     find_user_by_email,
+    find_user_by_user_id,
     find_user_by_user_name,
     find_user_session_by_user_id_for_update,
     reset_password,
     save_user,
+    change_user_details_with_user_id
 )
 from app.schemas.user_schema import (
     ForgotPasswordChange,
-    ForgotPasswordRequest,
     ResetPassword,
     UserCreate,
-    UserCreateRequest,
     UserLogin,
+    UserCreateRequest,
+    ForgotPasswordRequest
 )
 from app.services.helpers.otp_helper import (
     EmailDeliveryError,
-    otp_request_hanlder_for_user_service,
     verify_otp,
+    otp_request_hanlder_for_user_service
 )
+
 
 
 logger = logging.getLogger(__name__)
 
-async def find_user_account_from_email_or_user_name(session:AsyncSession,user_name:str|None,email:str|None) -> Users:
-    if user_name is not None:
-        user_detail = await find_user_by_user_name(session=session,user_name=user_name)
-    elif email is not None:
-        user_detail = await find_user_by_email(session=session,email=email)
-    else:
-        raise ValidationAppError(public_message="Please enter email or user name")
-    if user_detail is None:
-        raise UnauthorizedError(internal_message=f"Account Not found. User_name:{user_name} User_email:{email} ",
-            public_message="Invalid username/email or password")
-    return user_detail
 
+async def change_user_detail_service(session:AsyncSession,user_id:UUID,field :Literal["user_name","email","name"],new_value:UUID|str,password:str):
+   try: 
+     limit = settings.log_in_attempts
+     key = f"user:change_user_detail{field}"
+     allowed = redis_check_user_rate_limit(limit=settings.log_in_attempts,window=settings.log_in_block_window_sec,key=key) 
+     if not allowed:
+          raise UnauthorizedError(public_message=f"Your {field} change limit has exhausted, Please try again after {int(settings.log_in_block_window_sec)/60} minutes. ")
+        
+     user_detail = await  find_user_by_user_id(session=session,user_id=user_id)
+    
+     if not match_password(password,user_detail.password) :
+        attempts_left = await redis_get_attempts_left(key=key,limit=limit)
+        raise UnauthorizedError(public_message=f"Password you entred is incorrect, {attempts_left} are left")
+    
+
+     result =  await change_user_details_with_user_id(user_id=user_id,session=session,detail=getattr(Users,field),new_value=new_value) 
+
+     await session.commit()
+     return {"detail":f"Your {field} has been changed to {result}"} 
+   
+
+   except SQLAlchemyError as exc :
+     await session.rollback()
+     raise translate_database_error(exc=exc) from exc
+   except Exception as exc:
+       raise AppError(error_code="UNEXPECTED_ERROR",internal_message=(str),public_message="Unexpected Error occured, Please try again later",status_code=500) from exc 
+     
 
 
 async def verify_account_service(session:AsyncSession,user_create:UserCreateRequest|None=None,user_login:ForgotPasswordRequest|None=None):
@@ -71,6 +95,7 @@ async def verify_account_service(session:AsyncSession,user_create:UserCreateRequ
     otp_id,task_id =await otp_request_hanlder_for_user_service(session=session,purpose=purpose,email=str(email))
     return otp_id, task_id
 
+
 async def forgot_login_password_service(session:AsyncSession,user:ForgotPasswordChange,otp_id:UUID):
     allowed = await verify_otp(otp=user.otp,otp_id=otp_id,purpose="login",session=session,email=str(user.email))
     if allowed is not True:
@@ -81,6 +106,8 @@ async def forgot_login_password_service(session:AsyncSession,user:ForgotPassword
                        )
     try:
         user_detail = await find_user_account_from_email_or_user_name(email=user.email,user_name=user.user_name, session=session)
+        if match_password(user.new_password,user_detail.password):
+            ConflictError(public_message="Please enter a new password not similar to the old ones")
         user_detail.password = hash_password(user.new_password)
         await session.commit()
         return {"message": "Password changed successfully."}
@@ -101,7 +128,6 @@ async def create_account_service(session:AsyncSession,user:UserCreate,otp:str,ot
   try:
         new_user =  await save_user(session=session,
                             user_name = user.user_name,
-                            phone_number= user.phone,
                             name= user.name,
                             email_id=user.email,
                             hashed_password=hash_password(user.password))
@@ -251,12 +277,15 @@ async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPa
                 result =  await reset_password(session=session,user_id=user_id)
                 if result is None:
                     raise UnauthorizedError(public_message="Invalid session.Please login again",internal_message=f"No user account has been found for change password request by user_id: {user_id}")
-                if result.password != user.old_password:
+                if not match_password(user.old_password,result.password):
                     raise UnauthorizedError(public_message="Incorrect Old password entered by the user",internal_message=f"Password cannot be change for user_id:{user_id} due to password mismatch")
-                elif result.password == user.old_password:
-                    result.password =  user.new_password
+                if match_password(user.new_password,user.old_password):
+                   raise  ConflictError(public_message="New password should not match the past ones")
                 
-              
+               
+                result.password =  hash_password(user.new_password)
+                
+               
             return {"detail":f"User password has been changed {result.id}"}
     except (UnauthorizedError,AppError):
         raise
@@ -264,5 +293,27 @@ async def change_password_service(session:AsyncSession,user_id:UUID,user:ResetPa
        raise translate_database_error(exc=exc) from exc
     except Exception as exc:
         raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Please login again") from exc
+
+
+async def get_user_profile_service(session:AsyncSession,user_id:UUID):
+    """Return the authenticated user's own account details.
+
+    The user id always comes from a validated access token, so a missing row
+    means the account was removed after the token was issued.
+    """
+    try:
+        user = await find_user_by_user_id(session=session,user_id=user_id)
+        if user is None:
+            raise NotFoundError(
+                public_message="User account not found",
+                internal_message=f"No user account found for user_id={user_id}",
+            )
+        return user
+    except (NotFoundError,AppError):
+        raise
+    except SQLAlchemyError as exc:
+       raise translate_database_error(exc=exc) from exc
+    except Exception as exc:
+        raise AppError(error_code="UNEXPECTED_ERROR",status_code=500,internal_message=str(exc),public_message="An unexpected error has occured. Unable to fetch user details") from exc
 
 

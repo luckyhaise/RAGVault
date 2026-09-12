@@ -1,6 +1,7 @@
 
 import re
-from typing import Annotated, Self
+from datetime import datetime
+from typing import Annotated, Self , Literal
 from uuid import UUID
 
 from pydantic import (
@@ -13,8 +14,12 @@ from pydantic import (
 )
 
 from app.core.config import settings
+from sqlalchemy.sql.compiler import _BaseCompilerStackEntry
 
 USERNAME_PATTERN = r"^[a-zA-Z0-9_.-]+$"
+USERNAME_MIN_LENGTH = 3
+USERNAME_MAX_LENGTH = 200
+USERNAME_RE = re.compile(USERNAME_PATTERN)
 PASSWORD_PATTERN = re.compile(settings.regex)
 
 SPECIAL_CHARACTERS = "@#_!$%*.-"
@@ -58,23 +63,38 @@ NewPassword = Annotated[
     Field(min_length=8, max_length=128),
     AfterValidator(validate_new_password),
 ]
-def validate_phone_number(phone:str):
-    if not phone.startswith("+") :
-        raise ValueError("Phone number must contain country code")
-    if not len(phone[1:]) >= 7:
-        raise ValueError("Phone number is too small")
-    if not len(phone[1:]) <= 15:
-        raise ValueError("Phone number is too large")
-    return phone
 
-PhoneStr = Annotated[str,Field(
-        pattern=r"^\+[1-9][0-9]+$",
-    ),AfterValidator(validate_phone_number)]
+
+def validate_new_username(user_name: str) -> str:
+    if not USERNAME_RE.fullmatch(user_name):
+        raise ValueError(
+            "Username contains invalid characters. "
+            "Username can only contain letters, numbers, and . _ -"
+        )
+
+    if not any(character.isalpha() for character in user_name):
+        raise ValueError(
+            "Username must have atleast one letter"
+        )
+
+    if not any(character.isdigit() for character in user_name):
+        raise ValueError(
+            "Username must have atleast one number"
+        )
+
+    return user_name
+
+
+NewUsername = Annotated[
+    str,
+    Field(min_length=USERNAME_MIN_LENGTH, max_length=USERNAME_MAX_LENGTH),
+    AfterValidator(validate_new_username),
+]
+
 
 class UserLogin(BaseModel):
     user_name: str | None = Field(
         default=None,
-        pattern=USERNAME_PATTERN,
     )
     email: EmailStr | None = None
     password: str = Field(
@@ -94,11 +114,7 @@ class UserLogin(BaseModel):
 
 
 class UserCreateRequest(BaseModel):
-    user_name: str = Field(
-        min_length=3,
-        max_length=200,
-        pattern=USERNAME_PATTERN,
-    )
+    user_name: NewUsername
     email: EmailStr
     password: NewPassword
 
@@ -106,14 +122,10 @@ class UserCreateRequest(BaseModel):
         min_length=2,
         max_length=100,
     )
-    phone: PhoneStr
+ 
     
 class UserCreate(BaseModel):
-    user_name: str = Field(
-        min_length=3,
-        max_length=200,
-        pattern=USERNAME_PATTERN,
-    )
+    user_name: NewUsername
     email: EmailStr
     password: NewPassword
     otp_id:UUID
@@ -122,7 +134,7 @@ class UserCreate(BaseModel):
         min_length=2,
         max_length=100,
     )
-    phone: PhoneStr
+
     otp:str = Field(min_length=6,max_length=6)
 
 class ForgotPasswordRequest(BaseModel):
@@ -150,7 +162,30 @@ class ForgotPasswordChange(BaseModel):
 class ResetPassword(BaseModel):
     old_password:str
     new_password:NewPassword
+class ChangeUserDetail(BaseModel):
+    field: Literal["user_name","email","name"]
+    new_value :str
+    password:str = Field(min_length=1)
+    @model_validator(mode="after")
+    def validate_detail(self)-> Self:
+        if self.field == "email":
+            class ValidateEmail(BaseModel):
+                email:EmailStr
+            ValidateEmail(email=self.new_value)
+        if self.field =="name":
+            if len(self.new_value.strip()) < 2:
+                raise ValueError("Name must be atleast 2 characters long")
+            elif len(self.new_value.strip()) > 100:
+                raise ValueError("Name must be less than 100 characters long")
+        if self.field == "user_name":
+            class ValidateUsername(BaseModel):
+                user_name: NewUsername 
+            ValidateUsername(user_name=self.new_value)            
+        return self 
+        
+    
 
+    
 class UserCreateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     email: EmailStr 
@@ -176,3 +211,14 @@ class RefreshTokenResponse(BaseModel):
         description="JWT access token"
     )
     refresh_token:str|None = Field(...,min_length=1,description="JWT refresh token")
+
+
+class UserProfileResponse(BaseModel):
+    """The authenticated user's own account details."""
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID = Field(description="Unique identifier of the user")
+    user_name: str = Field(description="The user's username")
+    name: str = Field(description="The user's display name")
+    email: EmailStr = Field(description="The user's email address")
+    created_at: datetime = Field(description="Time when the account was created")
+    updated_at: datetime = Field(description="Time when the account was last updated")

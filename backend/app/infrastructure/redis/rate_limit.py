@@ -19,4 +19,13 @@ async def redis_verification_attempt_limit(key:str,limit:int):
     
     return attempts <= limit 
 
+async def redis_get_attempts_left(key:str,limit:int): 
+    """This function is used to get attempts left for a particular key"""
+    attempts_raw = await r.get(name=key)
+    attempts = int(attempts_raw) if attempts_raw else 0
+    attempts_left = limit - attempts
+    return max(0,attempts_left)
+ 
+
+
      

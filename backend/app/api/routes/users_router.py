@@ -20,15 +20,19 @@ from app.schemas.user_schema import (
    UserCreateRequest,
    UserCreateResponse,
    UserLogin,
+   UserProfileResponse,
+   ChangeUserDetail
 )
 from app.services.user_services import (
    change_password_service,
    create_account_service,
    forgot_login_password_service,
+   get_user_profile_service,
    login_service,
    logout_service,
    refresh_token_service,
    verify_account_service,
+   change_user_detail_service
 )
 
 user_router = APIRouter(tags=["Users"],prefix="/user")
@@ -89,3 +93,12 @@ async def logout_user_route(session:AsyncSession= Depends(get_db),refresh_token:
 @user_router.post(path="/change-password",response_model=None)
 async def change_password_route(user:ResetPassword,session:AsyncSession=Depends(get_db),user_id:UUID=Depends(validate_token_and_get_user_id)):
      return await change_password_service(session=session,user=user,user_id=user_id)
+
+@user_router.post(path="/change-user-detail")
+async def change_user_detail_route(user_detail:ChangeUserDetail,session:AsyncSession=Depends(get_db),user_id:UUID=Depends(validate_token_and_get_user_id)):
+    return await change_user_detail_service(field=user_detail.field,new_value=user_detail.new_value,user_id=user_id,session=session,password=user_detail.password)
+
+@user_router.get(path="/me",response_model=UserProfileResponse)
+async def get_user_profile_route(session:AsyncSession=Depends(get_db),user_id:UUID=Depends(validate_token_and_get_user_id)):
+   """Return the account details of the user identified by the access token."""
+   return await get_user_profile_service(session=session,user_id=user_id)

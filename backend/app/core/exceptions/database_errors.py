@@ -25,10 +25,6 @@ INTEGRITY_ERROR_MAP = {
         "code": "USERNAME_ALREADY_EXISTS",
         "field": "user_name",
     },
-    "uq_phone" : {
-        "message": "An account already exists with this Phone Number",
-        "code" : "PHONE_NUMBER_ALREADY_EXISTS",
-        "field" : "phone"},
     "uq_document_idempotency_key": {
         "message": "A job already exists with this idempotancy key",
         "code" : "IDEMPOTANCY_KEY_ALREADY_EXISTS",

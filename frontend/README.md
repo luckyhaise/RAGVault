@@ -1,3 +1,51 @@
+# RAGVault Frontend
+
+React + TypeScript + Vite + Tailwind single-page client for the RAGVault API.
+
+## Running
+
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # type-check + production bundle
+npm run lint
+```
+
+The backend must be reachable and allow the dev origin via CORS
+(`http://localhost:5173` — already configured in `backend/app/main.py`).
+
+### API base URL
+
+Defaults to `http://localhost:8000/api/v1`. Override with an env var:
+
+```bash
+# .env.local
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+## Features
+
+- **Auth**: login by username or email, OTP-verified registration, forgot/reset
+  password, change password, logout. Access + refresh tokens are persisted and
+  401s transparently refresh (with a single shared in-flight refresh) and retry.
+- **Documents**: paginated list, drag-and-drop upload (`.txt` / `.csv` / `.md`,
+  50 MB max, idempotency keyed), delete with confirmation, and a paginated text
+  viewer.
+
+## Structure
+
+```
+src/
+  api/        fetch client, token store, auth + document endpoints
+  context/    AuthProvider (session) and ToastProvider (notifications)
+  components/ auth forms, document list/viewer/upload, UI primitives
+  pages/      LoginRegister and Dashboard
+  types/      request/response contracts
+  utils/      validation mirrors + formatting
+```
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

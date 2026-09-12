@@ -19,5 +19,5 @@ async def get_saved_otp(session:AsyncSession,otp_id:UUID):
     return result
 async def delete_otp(session:AsyncSession,otp_id:UUID):
     stmt = delete(EmailVerificationOtp).where(EmailVerificationOtp.id == otp_id)
-    result = await session.execute(stmt)
+    await session.execute(stmt)
     

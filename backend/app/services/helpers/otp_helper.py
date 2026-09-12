@@ -32,7 +32,7 @@ async def otp_request_hanlder_for_user_service(
         otp = "".join(secrets.choice("0123456789") for _ in range(6))
         limit = settings.create_account_attempts if purpose == "create_account" else settings.log_in_attempts
         window = settings.create_account_block_window_sec if purpose == "create_account"  else settings.log_in_block_window_sec
-        approved = await redis_check_user_rate_limit(key=f"otp:request:{email}",limit=limit,window=window)
+        approved = await redis_check_user_rate_limit(key=f"otp:request:{purpose}:{email}",limit=limit,window=window)
         if approved is not True:
             raise EmailDeliveryError(public_message=f"Otp request limit exhausted. Please try after {window / 60}",status_code=429,error_code="OTP_RATE_LIMIT_EXCEEDED")
 
@@ -71,7 +71,7 @@ async def otp_request_hanlder_for_user_service(
         else:
             internal_message = str(exc)
 
-        raise AppError(internal_message=internal_message,public_message=public_message,status_code=status_code,error_code=error_code)
+        raise AppError(internal_message=internal_message,public_message=public_message,status_code=status_code,error_code=error_code) from exc
 
 
 
@@ -122,7 +122,7 @@ async def verify_otp(session:AsyncSession,otp:str,otp_id:UUID,email:str,purpose:
             else:
                 internal_message = str(exc)
     
-            raise AppError(internal_message=internal_message,public_message=public_message,status_code=status_code,error_code=error_code)
+            raise AppError(internal_message=internal_message,public_message=public_message,status_code=status_code,error_code=error_code) from exc
             
 
 

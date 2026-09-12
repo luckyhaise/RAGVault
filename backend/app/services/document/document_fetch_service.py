@@ -62,7 +62,7 @@ async def get_user_document(session: AsyncSession, document_command: RetrieveDoc
                 "pagination": {
                     "text_length":doc_length,
                     "next_start":next_start,
-                    "has_next" : next_start > doc_length,
+                    "has_next" : next_start < doc_length,
                     "has_prev": next_start > 1
                     
                 }

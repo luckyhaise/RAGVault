@@ -1,12 +1,21 @@
-import CreateAccountForm from './components/CreateAccountForm'
-import './App.css'
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
+import { Dashboard } from "./pages/dashboard";
+import { LoginRegister } from "./pages/LoginRegister";
 
-function App() {
-
-  return (
-    <div>
-    <CreateAccountForm></CreateAccountForm>
-  </div>)
+function Routed() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Dashboard /> : <LoginRegister />;
 }
 
-export default App
+function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <Routed />
+      </AuthProvider>
+    </ToastProvider>
+  );
+}
+
+export default App;

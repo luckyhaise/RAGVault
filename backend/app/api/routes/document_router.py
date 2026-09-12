@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.upload_file_validation import validate_file
 from app.api.dependencies.validate_token import validate_token_and_get_user_id
 from app.db.database import get_db
-from app.schemas.documents_schema import CreateDocumentsCommand, DeleteDocumentCommand, RetrieveAllUserDocuments, RetrieveDocument
+from app.schemas.documents_schema import CreateDocumentsCommand, DeleteDocumentCommand, RetrieveAllUserDocuments, RetrieveAllUserDocumentsResponse, RetrieveDocument
 from app.schemas.ingestion_jobs_schema import IngestionJobsResponse
 from app.services.document.document_presistence_service import (
     delete_document_service,
@@ -28,11 +28,11 @@ async def delete_document(document_id:UUID,user_id:UUID = Depends(validate_token
     command = DeleteDocumentCommand(user_id=user_id,id=document_id)
     return await delete_document_service(session=session,command=command)
     
-@document_router.post(path="/get-all-documents",response_model=None)
+@document_router.post(path="/get-all-documents",response_model=RetrieveAllUserDocumentsResponse)
 async def get_all_documents(document_command:RetrieveAllUserDocuments,session:AsyncSession=Depends(get_db),user_id:UUID = Depends(validate_token_and_get_user_id)):
     
     return await fetch_all_user_documents(document_command=document_command,session=session,user_id=user_id)
 
-@document_router.post(path="/get-documet",response_model=None)
+@document_router.post(path="/get-document",response_model=None)
 async def get_document(document_command:RetrieveDocument,session:AsyncSession=Depends(get_db),user_id:UUID=Depends(validate_token_and_get_user_id)):
     return await get_user_document(document_command=document_command,user_id=user_id,session=session)
