@@ -2,13 +2,11 @@ import pytest
 from account_helper import TEST_ACCOUNTS
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions.exceptions import DataBaseError
-from app.services.user_services import (
-    User_Create,
-    create_account_service,
-    find_user_by_user_name,
-    match_password,
-)
+from app.core.exceptions.database_errors import DataBaseError
+from app.core.security import match_password
+from app.repositories.users_repository import find_user_by_user_name
+from app.schemas.user_schema import UserCreate
+from app.services.user import create_account_service
 
 
 def create_user():
@@ -20,7 +18,7 @@ def create_user():
 async def test_create_account_services(db_session:AsyncSession, user):
     existing = await find_user_by_user_name(session=db_session, user_name=user["user_name"])
     if existing is None:
-        account = await create_account_service(session=db_session,user=User_Create(**user))
+        account = await create_account_service(session=db_session,user=UserCreate(**user))
     else:
         account = existing
     assert account.user_name == user["user_name"]
@@ -41,7 +39,7 @@ async def test_create_account_rejects_emails_aready_present(db_session:AsyncSess
          user[key] = f"{user[key]}9"
     with pytest.raises(DataBaseError) as excinfo:
 
-       user1 = await create_account_service(session=db_session,user=User_Create(**user))
+       user1 = await create_account_service(session=db_session,user=UserCreate(**user))
     assert excinfo.value.error_code == "EMAIL_ALREADY_EXISTS" 
     assert "uq_email" in excinfo.value.internal_message
 
@@ -52,7 +50,7 @@ async def test_create_account_rejects_phone_already_present(db_session:AsyncSess
       if key != "phone":
          user[key] = "S"+ str(user[key])
    with pytest.raises(DataBaseError) as excinfo:
-      user1 = await create_account_service(session=db_session,user=User_Create(**user))
+      user1 = await create_account_service(session=db_session,user=UserCreate(**user))
    assert excinfo.value.error_code == "PHONE_NUMBER_ALREADY_EXISTS"
    assert "uq_phone" in excinfo.value.internal_message
 @pytest.mark.asyncio
@@ -65,6 +63,6 @@ async def test_create_account_rejects_username_already_present(db_session:AsyncS
          user[key] = str(user[key])[:-1] + "1" 
 
    with pytest.raises(DataBaseError) as excinfo:
-         user1 = await create_account_service(session=db_session,user=User_Create(**user))
+         user1 = await create_account_service(session=db_session,user=UserCreate(**user))
    assert excinfo.value.error_code == "USERNAME_ALREADY_EXISTS"
    assert "uq_user_name" in excinfo.value.internal_message 

@@ -3,16 +3,12 @@ from uuid import UUID
 import pytest
 from account_helper import TEST_ACCOUNTS
 
+from app.core.exceptions.exceptions import UnauthorizedError
 from app.core.security import decode_access_token
 from app.models.models import Users
-from app.services.user_services import (
-    UnauthorizedError,
-    User_Create,
-    User_Login,
-    create_account_service,
-    find_user_by_user_name,
-    login_service,
-)
+from app.repositories.users_repository import find_user_by_user_name
+from app.schemas.user_schema import UserCreate, UserLogin
+from app.services.user import create_account_service, login_service
 
 
 @pytest.mark.parametrize(
@@ -24,7 +20,7 @@ from app.services.user_services import (
 @pytest.mark.asyncio
 async def test_login_service_rejects_user_id_and_email_not_found(user_name,email,password,db_session):
     with pytest.raises(UnauthorizedError) as excinfo:
-          await login_service(session=db_session,user=User_Login(user_name=user_name,password=password,email=email)) 
+          await login_service(session=db_session,user=UserLogin(user_name=user_name,password=password,email=email)) 
     assert "Account Not found"  in excinfo.value.internal_message 
     
 
@@ -45,9 +41,9 @@ async def test_login_service_works_with_username_and_email(db_session, user_name
     existing = await find_user_by_user_name(session=db_session, user_name=account["user_name"])
     if existing is None:
         
-        await create_account_service(session=db_session, user=User_Create(**account))
+        await create_account_service(session=db_session, user=UserCreate(**account))
 
-    login_token = await login_service(session=db_session,user=User_Login(user_name=user_name,email=email,password=password))
+    login_token = await login_service(session=db_session,user=UserLogin(user_name=user_name,email=email,password=password))
     assert login_token
     id = decode_access_token(login_token)
     user = await db_session.get(Users, UUID(id))
@@ -71,6 +67,6 @@ async def test_login_service_rejects_wrong_passwords(db_session,user_name,passwo
      
           
      with pytest.raises(UnauthorizedError) as excinfo:
-          await login_service(session=db_session,user=User_Login(user_name=user_name,password=password)) 
+          await login_service(session=db_session,user=UserLogin(user_name=user_name,password=password)) 
      assert excinfo.value.internal_message  == f"Incorrect password input user_name: {user_name} , password: {password}"
      

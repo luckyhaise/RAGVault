@@ -23,7 +23,7 @@ from app.schemas.user_schema import (
    UserProfileResponse,
    ChangeUserDetail
 )
-from app.services.user_services import (
+from app.services.user import (
    change_password_service,
    create_account_service,
    forgot_login_password_service,

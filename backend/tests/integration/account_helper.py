@@ -1,5 +1,6 @@
 from app.repositories.users_repository import find_user_by_user_name
-from app.services.user_services import User_Create, create_account_service
+from app.schemas.user_schema import UserCreate
+from app.services.user import create_account_service
 
 TEST_ACCOUNTS = [
     {
@@ -31,5 +32,5 @@ async def ensure_user(db_session,i:int=None):
     account = TEST_ACCOUNTS[index]
     existing = await find_user_by_user_name(session=db_session, user_name=account["user_name"])
     if existing is None:
-        return await create_account_service(session=db_session, user=User_Create(**account))
+        return await create_account_service(session=db_session, user=UserCreate(**account))
     return existing

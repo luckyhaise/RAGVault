@@ -9,14 +9,6 @@ from app.repositories.users_repository import (
     find_user_by_email,
     find_user_by_user_name,
 )
-from app.schemas.user_schema import (
-    ForgotPasswordRequest,
-    UserCreateRequest,
-)
-from app.services.helpers.otp_helper import (
-    otp_request_hanlder_for_user_service,
-
-)
 
 
 
